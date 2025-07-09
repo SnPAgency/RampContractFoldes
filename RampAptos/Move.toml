@@ -1,0 +1,16 @@
+[package]
+name = "RampAptos"
+version = "1.0.0"
+authors = []
+
+[addresses]
+RampAptos = "0x70c1e9dc6500d8cf161a4716302924dde0d198478a65adc8cff27805b1107a31"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"
+
+[dev-dependencies]
