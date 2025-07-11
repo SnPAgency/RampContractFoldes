@@ -1,0 +1,16 @@
+[package]
+name = "RampSup"
+version = "1.0.0"
+authors = []
+
+[addresses]
+RampSup = "0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8" 
+
+[dev-addresses]
+
+[dependencies.SupraFramework]
+git = "https://github.com/Entropy-Foundation/aptos-core.git"
+rev = "dev"
+subdir = "aptos-move/framework/supra-framework"
+
+[dev-dependencies]
