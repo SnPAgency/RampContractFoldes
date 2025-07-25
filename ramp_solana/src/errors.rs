@@ -25,7 +25,7 @@ pub enum RampError {
     RentError,
 
     #[error("Invalid Payer")]
-    InvalidPayer,
+    InvalidSigner,
 }
 
 impl From<RampError> for ProgramError {

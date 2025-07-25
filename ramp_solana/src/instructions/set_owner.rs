@@ -17,16 +17,16 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
 
-    // Check if the account is initialized
-    if ramp_account.data_is_empty() {
-        msg!("Ramp account is not initialized");
-        return Err(RampError::UninitializedAccount.into());
-    }
 
     // Deserialize the RampState
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
 
+    // Check if the ramp account is initialized
+    if !ramp_state.is_initialized {
+        msg!("Ramp account is not initialized");
+        return Err(RampError::UninitializedAccount.into());
+    }
     // Set the new owner
     ramp_state.owner = args.new_owner;
 

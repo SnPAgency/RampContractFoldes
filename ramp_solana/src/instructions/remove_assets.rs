@@ -17,13 +17,14 @@ pub fn remove_assets(
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
 
-    if ramp_account.data_is_empty() {
+    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
+
+    // Check if the ramp account is initialized
+    if !ramp_state.is_initialized {
         msg!("Ramp account is not initialized");
         return Err(RampError::UninitializedAccount.into());
     }
-
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
 
     // Remove the specified assets
     for asset in args.assets {
