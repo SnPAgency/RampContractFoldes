@@ -12,8 +12,7 @@ use {
         pubkey::Pubkey,
     },
 };
-use std::mem::size_of
-;
+
 pub fn initialize_program(
     program_id: &Pubkey,
     accounts: &[AccountInfo]
@@ -23,15 +22,15 @@ pub fn initialize_program(
     let payer_account = next_account_info(account_info_iter)?;
     let system_program_account = next_account_info(account_info_iter)?;
 
-    let account_space = size_of::<RampState>();
+    let account_space = 8 + RampState::get_space_with_assets(10);
 
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
         .minimum_balance(account_space);
 
     if !payer_account.is_signer {
-        msg!("Payer account must be a signer");
-        return Err(RampError::InvalidPayer.into());
+        msg!("Payer account should not be the signer");
+        return Err(RampError::InvalidSigner.into());
     }
     invoke(
         &create_account(
@@ -48,14 +47,10 @@ pub fn initialize_program(
         ],
     )?;
 
-    if !ramp_account.data_is_empty() {
-        msg!("Ramp account is already initialized");
-        return Err(RampError::AccountAlreadyInitialized.into());
-    }
-
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state = RampState::default();
     ramp_state.is_initialized = true;
+    ramp_state.owner = *payer_account.key;
     ramp_state.serialize(&mut &mut ramp_data[..])?;
 
     msg!("Ramp account initialized");

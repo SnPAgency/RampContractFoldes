@@ -19,3 +19,10 @@ impl Default for RampState {
         }
     }
 }
+
+impl RampState {
+    pub fn get_space_with_assets(max_assets: usize) -> usize {
+        // Bool (1) + Pubkey (32) + Bool (1) + Vec len (4) + N * Pubkey (32)
+        1 + 32 + 1 + 4 + (max_assets * 32)
+    }
+}

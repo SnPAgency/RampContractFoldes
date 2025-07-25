@@ -1,3 +1,4 @@
+cargo-features = ["edition2024"]
 [package]
 name = "ramp_solana"
 version = "0.1.0"
@@ -10,3 +11,8 @@ crate-type = ["cdylib", "lib"]
 borsh = "1.5.7"
 solana-program = "1.18.26"
 thiserror = "2.0.12"
+
+[dev-dependencies]
+solana-program-test = "1.18.26"
+solana-sdk = "1.18.26"
+tokio = "1.46.1"
