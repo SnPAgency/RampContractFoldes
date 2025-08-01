@@ -1,28 +1,39 @@
-use {
-    crate::{errors::RampError, state::RampState},
-    borsh::BorshSerialize,
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program::invoke,
-        rent::Rent,
-        system_instruction::create_account,
-        sysvar::Sysvar,
-        pubkey::Pubkey,
-    },
+use crate::{errors::RampError, state::RampState};
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    account_info::{next_account_info, AccountInfo}, 
+    entrypoint::ProgramResult, 
+    msg, 
+    program::invoke,
+    pubkey::Pubkey, 
+    rent::Rent, 
+    sysvar::Sysvar,
+    system_instruction::create_account
 };
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct InitializeProgramInstruction {
+    pub max_assets: usize,
+    pub vault_address: Pubkey,
+}
 
 pub fn initialize_program(
     program_id: &Pubkey,
-    accounts: &[AccountInfo]
+    accounts: &[AccountInfo],
+    args: InitializeProgramInstruction
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let payer_account = next_account_info(account_info_iter)?;
     let system_program_account = next_account_info(account_info_iter)?;
 
-    let account_space = 8 + RampState::get_space_with_assets(10);
+    // Validate max_assets parameter
+    if args.max_assets == 0 || args.max_assets > 100 {
+        msg!("Invalid max_assets: must be between 1 and 100");
+        return Err(RampError::InvalidInstruction.into());
+    }
+
+    let account_space = 8 + RampState::get_space_with_assets(args.max_assets);
 
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
@@ -51,7 +62,24 @@ pub fn initialize_program(
     let mut ramp_state = RampState::default();
     ramp_state.is_initialized = true;
     ramp_state.owner = *payer_account.key;
-    ramp_state.serialize(&mut &mut ramp_data[..])?;
+    ramp_state.vault_address = args.vault_address;
+    
+    // Clear the account data first
+    ramp_data.fill(0);
+    
+    // Serialize the initial state to the account data
+    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
+        msg!("Serialization failed: {:?}", e);
+        RampError::InvalidAccountState
+    })?;
+    
+    if serialized_data.len() > ramp_data.len() {
+        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
+        return Err(RampError::InvalidAccountState.into());
+    }
+    
+    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
+    msg!("State serialized successfully");
 
     msg!("Ramp account initialized");
     Ok(())

@@ -26,6 +26,21 @@ pub enum RampError {
 
     #[error("Invalid Payer")]
     InvalidSigner,
+
+    #[error("Unauthorized: Only owner can perform this action")]
+    Unauthorized,
+
+    #[error("Asset already exists")]
+    AssetAlreadyExists,
+
+    #[error("Asset not found")]
+    AssetNotFound,
+
+    #[error("Invalid fee percentage")]
+    InvalidFeePercentage,
+
+    #[error("Program is not active")]
+    ProgramNotActive,
 }
 
 impl From<RampError> for ProgramError {
