@@ -1,11 +1,10 @@
-use {
-    crate::{errors::RampError, state::RampState}, borsh::{BorshDeserialize, BorshSerialize}, solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        //program::invoke,
-        pubkey::Pubkey,
-    }
+use crate::{errors::RampError, state::RampState};
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    account_info::{next_account_info, AccountInfo}, 
+    entrypoint::ProgramResult, 
+    msg, 
+    pubkey::Pubkey
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -16,7 +15,9 @@ pub struct SetOwnerInstruction {
 pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerInstruction) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
+    let current_owner_account = next_account_info(account_info_iter)?;
 
+    msg!("Setting new owner...");
 
     // Deserialize the RampState
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
@@ -27,11 +28,37 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
         msg!("Ramp account is not initialized");
         return Err(RampError::UninitializedAccount.into());
     }
+
+    // Check current owner authorization
+    if !current_owner_account.is_signer {
+        msg!("Current owner account must be signer");
+        return Err(RampError::InvalidSigner.into());
+    }
+
+    if ramp_state.owner != *current_owner_account.key {
+        msg!("Only current owner can change ownership");
+        return Err(RampError::Unauthorized.into());
+    }
+
     // Set the new owner
     ramp_state.owner = args.new_owner;
 
+    // Clear the account data first
+    ramp_data.fill(0);
+    
     // Serialize the updated state back to the account data
-    ramp_state.serialize(&mut &mut ramp_data[..])?;
+    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
+        msg!("Serialization failed: {:?}", e);
+        RampError::InvalidAccountState
+    })?;
+    
+    if serialized_data.len() > ramp_data.len() {
+        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
+        return Err(RampError::InvalidAccountState.into());
+    }
+    
+    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
+    msg!("State serialized successfully");
 
     msg!("Ramp account owner set to {}", args.new_owner);
     Ok(())
