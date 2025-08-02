@@ -9,8 +9,6 @@ module RampAptos::ramp {
 
     #[test_only]
     use std::debug;
-    use std::string::{String, utf8};
-    use aptos_framework::fungible_asset::create_fungible_asset;
 
     /// Errors
     /// These are used to handle errors in the contract.
@@ -461,20 +459,20 @@ module RampAptos::ramp {
 
     #[test_only(owner = @RampAptos, admin = @0x2)]
     public entry fun initialize_test(owner: signer, admin: address) {
-        let msg: String = utf8(b"Running test for initialize...");
+        let msg: std::string::String = std::string::utf8(b"Running test for initialize...");
         debug::print(&msg);
         initialize(&owner, admin);
     }
 
     #[test(owner = @RampAptos, admin= @0x2)]
     public entry fun test_add_asset(owner: signer, admin: signer) acquires GlobalStorage {
-        let msg: String = utf8(b"Running test for add_asset...");
+        let msg: std::string::String = std::string::utf8(b"Running test for add_asset...");
         debug::print(&msg);
 
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));
 
-        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = create_fungible_asset(&owner);
+        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
         add_asset(&admin, metadata, 1u64);
 
         assert!(event::was_event_emitted(
@@ -485,14 +483,14 @@ module RampAptos::ramp {
 
     #[test(owner = @RampAptos, admin= @0x2)]
     public entry fun test_remove_asset(owner: signer, admin: signer) acquires GlobalStorage {
-        let msg: String = utf8(b"Running test for remove_asset...");
+        let msg: std::string::String = std::string::utf8(b"Running test for remove_asset...");
         debug::print(&msg);
 
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         aptos_framework::account::create_account_for_test(signer::address_of(&admin));
 
         initialize(&owner, signer::address_of(&admin));
-        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = create_fungible_asset(&owner);
+        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
 
         add_asset(&admin, metadata, 1u64);
 
@@ -506,7 +504,7 @@ module RampAptos::ramp {
 
     #[test(owner = @RampAptos, admin= @0x2)]
     public entry fun test_set_contract_state(owner: signer, admin: signer) acquires GlobalStorage {
-        let msg: String = utf8(b"Running test for set_contract_state...");
+        let msg: std::string::String = std::string::utf8(b"Running test for set_contract_state...");
         debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));
@@ -520,7 +518,7 @@ module RampAptos::ramp {
 
     #[test(owner = @RampAptos, admin= @0x2, new_owner = @0x4)]
     public entry fun test_set_owner(owner: signer, admin: signer, new_owner: address) acquires GlobalStorage {
-        let msg: String = utf8(b"Running test for set_owner...");
+        let msg: std::string::String = std::string::utf8(b"Running test for set_owner...");
         debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));

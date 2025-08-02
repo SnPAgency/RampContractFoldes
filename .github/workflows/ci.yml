@@ -1,0 +1,148 @@
+name: SnappiPay CI/CD Pipeline
+
+on:
+  push:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Job for Aptos Move contracts
+  aptos:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampAptos/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Aptos CLI
+      run: |
+        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Build and Test RampAptos
+      run: |
+        cd RampAptos
+        aptos move compile
+        aptos move test
+
+  # Job for Solidity/Foundry contracts
+  foundry:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Build and Test RampSol
+      run: |
+        cd RampSol
+        forge install --no-commit
+        forge build
+        forge test
+
+  # Job for Supra Move contracts
+  supra:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampSup/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Supra CLI
+      run: |
+        curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
+        docker exec -it supra_cli /bin/bash 
+    
+    - name: Build and Test RampSup
+      run: |
+        cd RampSup
+        supra move tool compile
+        supra move tool test
+
+  # Job for Rust/Solana contracts
+  solana:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ramp_solana/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build and Test ramp_solana
+      run: |
+        cd ramp_solana
+        cargo build
+        cargo test
+
+  # Job for Cairo/StarkNet contracts
+  starknet:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Scarb
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Build and Test ramp_stark
+      run: |
+        cd ramp_stark
+        scarb build
+        snforge test
+
+  # Job to run complete workflow
+  complete-workflow:
+    runs-on: ubuntu-latest
+    needs: [aptos, foundry, supra, solana, starknet]
+    if: always()
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install all dependencies
+      run: |
+        # Install Rust
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source ~/.cargo/env
+        
+        # Install Foundry
+        curl -L https://foundry.paradigm.xyz | bash
+        source ~/.bashrc
+        foundryup
+        
+        # Install Aptos CLI
+        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+        
+        # Install Scarb
+        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+        
+        # Add to PATH
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+
+    - name: Run Complete Workflow
+      run: |
+        chmod +x build_all.sh
+        ./build_all.sh
