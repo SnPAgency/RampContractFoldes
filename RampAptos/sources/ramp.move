@@ -6,6 +6,8 @@ module RampAptos::ramp {
     use aptos_framework::event;
     use aptos_framework::fungible_asset::{Self, Metadata, FungibleStore};
     use aptos_framework::primary_fungible_store::{ensure_primary_store_exists, deposit};
+    use aptos_framework::option;
+    use std::string;
 
     #[test_only]
     use std::debug;
@@ -472,7 +474,18 @@ module RampAptos::ramp {
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));
 
-        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
+        // Create a test fungible asset using the proper pattern
+        let constructor_ref = &object::create_named_object(&owner, b"TEST_ASSET");
+        aptos_framework::primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            constructor_ref,
+            aptos_framework::option::none(),
+            std::string::utf8(b"Test Asset"),
+            std::string::utf8(b"TEST"),
+            8,
+            std::string::utf8(b"http://example.com/favicon.ico"),
+            std::string::utf8(b"http://example.com"),
+        );
+        let metadata = object::object_from_constructor_ref<fungible_asset::Metadata>(constructor_ref);
         add_asset(&admin, metadata, 1u64);
 
         assert!(event::was_event_emitted(
@@ -490,7 +503,18 @@ module RampAptos::ramp {
         aptos_framework::account::create_account_for_test(signer::address_of(&admin));
 
         initialize(&owner, signer::address_of(&admin));
-        let (_mint_ref, _transfer_ref, _burn_ref, _metadata_ref, metadata) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
+        // Create a test fungible asset using the proper pattern
+        let constructor_ref = &object::create_named_object(&owner, b"TEST_ASSET");
+        aptos_framework::primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            constructor_ref,
+            aptos_framework::option::none(),
+            std::string::utf8(b"Test Asset"),
+            std::string::utf8(b"TEST"),
+            8,
+            std::string::utf8(b"http://example.com/favicon.ico"),
+            std::string::utf8(b"http://example.com"),
+        );
+        let metadata = object::object_from_constructor_ref<fungible_asset::Metadata>(constructor_ref);
 
         add_asset(&admin, metadata, 1u64);
 

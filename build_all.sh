@@ -150,25 +150,42 @@ build_ramp_sup() {
     
     cd RampSup
     
-    if ! command_exists supra; then
-        print_warning "Supra CLI not found. Attempting to use aptos CLI as fallback..."
-        if ! command_exists aptos; then
-            print_error "Neither Supra nor Aptos CLI found. Please install one of them."
-            record_result "RampSup" "FAILED - Missing CLI"
+    # Check if Docker is available
+    if ! command_exists docker; then
+        print_error "Docker not found. Please install Docker to use Supra CLI."
+        record_result "RampSup" "FAILED - Missing Docker"
+        cd ..
+        return
+    fi
+    
+    # Check if we can use local supra command first
+    if command_exists supra; then
+        print_status "Using local Supra CLI..."
+        CLI_CMD="supra move tool"
+    elif docker ps | grep -q supra_cli; then
+        print_status "Using Supra CLI Docker container..."
+        CLI_CMD="docker exec supra_cli supra move tool"
+    else
+        print_status "Starting Supra CLI Docker container..."
+        curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
+        sleep 5
+        
+        if docker ps | grep -q supra_cli; then
+            CLI_CMD="docker exec supra_cli supra move tool"
+        else
+            print_error "Failed to start Supra CLI container and no local supra command found"
+            record_result "RampSup" "FAILED - No Supra CLI available"
             cd ..
             return
         fi
-        CLI_CMD="aptos"
-    else
-        CLI_CMD="supra"
     fi
     
-    print_status "Compiling Move modules with $CLI_CMD..."
-    if $CLI_CMD move compile; then
+    print_status "Compiling Move modules with Supra CLI..."
+    if $CLI_CMD compile; then
         print_success "RampSup compilation successful"
         
         print_status "Running Move tests..."
-        if $CLI_CMD move test; then
+        if $CLI_CMD test; then
             print_success "RampSup tests passed"
             record_result "RampSup" "SUCCESS"
         else

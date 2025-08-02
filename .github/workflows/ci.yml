@@ -41,7 +41,7 @@ jobs:
     - name: Build and Test RampSol
       run: |
         cd RampSol
-        forge install --no-commit
+        forge install
         forge build
         forge test
 
@@ -56,14 +56,34 @@ jobs:
     
     - name: Install Supra CLI
       run: |
+        # Create supra directory if it doesn't exist
+        mkdir -p supra
+        cd supra
+        
+        # Download and start Supra CLI container
         curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
-        docker exec -it supra_cli /bin/bash 
+        
+        # Wait for container to be ready and verify it's running
+        sleep 10
+        docker ps --all
+        
+        # Test if container is responsive
+        timeout 30 docker exec supra_cli supra --help || {
+          echo "Container not ready, checking logs..."
+          docker logs supra_cli
+          exit 1
+        }
+        
+        cd ..
     
     - name: Build and Test RampSup
       run: |
-        cd RampSup
-        supra move tool compile
-        supra move tool test
+        # Copy RampSup to supra directory for container access
+        cp -r RampSup supra/
+        
+        # Run supra commands inside the Docker container with proper working directory
+        docker exec -w /supra/RampSup supra_cli supra move tool compile
+        docker exec -w /supra/RampSup supra_cli supra move tool test
 
   # Job for Rust/Solana contracts
   solana:
