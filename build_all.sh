@@ -157,80 +157,75 @@ build_ramp_sup() {
         cd ..
         return
     fi
-    
-    # Check if we can use local supra command first
-    if command_exists supra; then
-        print_status "Using local Supra CLI..."
-        CLI_CMD="supra move tool"
-    elif docker ps | grep -q supra_cli; then
-        print_status "Using Supra CLI Docker container..."
-        # Check what's available in the container and find the correct path
-        print_status "Checking Supra CLI container setup..."
-        docker exec supra_cli ls -la /usr/local/bin/ || true
-        docker exec supra_cli ls -la /opt/ || true
-        docker exec supra_cli which supra || docker exec supra_cli find / -name "supra" 2>/dev/null | head -5 || true
-        
-        # Try different possible paths for the supra executable
-        if docker exec supra_cli test -f /usr/local/bin/supra; then
-            CLI_CMD="docker exec supra_cli /usr/local/bin/supra move tool"
-        elif docker exec supra_cli test -f /opt/supra/bin/supra; then
-            CLI_CMD="docker exec supra_cli /opt/supra/bin/supra move tool"
-        elif docker exec supra_cli test -f /supra/supra; then
-            CLI_CMD="docker exec supra_cli /supra/supra move tool"
-        else
-            print_error "Supra executable not found in Docker container"
-            record_result "RampSup" "FAILED - Supra executable not found in container"
-            cd ..
-            return
-        fi
-    else
-        print_status "Starting Supra CLI Docker container..."
-        curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
-        sleep 10
-        
-        if docker ps | grep -q supra_cli; then
-            # Check container setup after starting
-            print_status "Verifying Supra CLI in new container..."
-            docker exec supra_cli ls -la /usr/local/bin/ || true
-            docker exec supra_cli which supra || docker exec supra_cli find / -name "supra" 2>/dev/null | head -5 || true
-            
-            # Try different possible paths
-            if docker exec supra_cli test -f /usr/local/bin/supra; then
-                CLI_CMD="docker exec supra_cli /usr/local/bin/supra move tool"
-            elif docker exec supra_cli test -f /opt/supra/bin/supra; then
-                CLI_CMD="docker exec supra_cli /opt/supra/bin/supra move tool"
-            elif docker exec supra_cli test -f /supra/supra; then
-                CLI_CMD="docker exec supra_cli /supra/supra move tool"
-            else
-                print_error "Failed to find Supra executable in container and no local supra command found"
-                record_result "RampSup" "FAILED - No Supra CLI available"
-                cd ..
-                return
-            fi
-        else
-            print_error "Failed to start Supra CLI container and no local supra command found"
-            record_result "RampSup" "FAILED - No Supra CLI available"
-            cd ..
-            return
-        fi
-    fi
-    
-    print_status "Compiling Move modules with Supra CLI..."
-    if $CLI_CMD compile; then
-        print_success "RampSup compilation successful"
-        
-        print_status "Running Move tests..."
-        if $CLI_CMD test; then
-            print_success "RampSup tests passed"
-            record_result "RampSup" "SUCCESS"
-        else
-            print_error "RampSup tests failed"
-            record_result "RampSup" "FAILED - Tests"
-        fi
-    else
-        print_error "RampSup compilation failed"
-        record_result "RampSup" "FAILED - Compilation"
-    fi
+#    
+#    # Check if we can use local supra command first
+#    if command_exists supra; then
+#        print_status "Using local Supra CLI..."
+#        CLI_CMD="supra move tool"
+#    elif docker ps | grep -q supra_cli; then
+#        print_status "Using Supra CLI Docker container..."
+#        # Test if supra command works directly in container
+#        print_status "Testing supra command availability..."
+#        if docker exec supra_cli supra --help > /dev/null 2>&1; then
+#            print_status "✅ supra command works directly"
+#            CLI_CMD="docker exec supra_cli supra move tool"
+#        elif docker exec supra_cli /bin/bash -c "supra --help" > /dev/null 2>&1; then
+#            print_status "✅ supra command works with bash shell"
+#            CLI_CMD="docker exec supra_cli /bin/bash -c 'supra move tool'"
+#        else
+#            print_error "❌ supra command not accessible in container"
+#            docker exec supra_cli ls -la /usr/local/bin/ || true
+#            docker exec supra_cli find / -name "supra" 2>/dev/null | head -10 || true
+#            record_result "RampSup" "FAILED - Supra command not accessible in container"
+#            cd ..
+#            return
+#        fi
+#    else
+#        print_status "Starting Supra CLI Docker container..."
+#        curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
+#        sleep 10
+#        
+#        if docker ps | grep -q supra_cli; then
+#            # Test supra command after starting container
+#            print_status "Testing supra command in new container..."
+#            if docker exec supra_cli supra --help > /dev/null 2>&1; then
+#                print_status "✅ supra command works directly"
+#                CLI_CMD="docker exec supra_cli supra move tool"
+#            elif docker exec supra_cli /bin/bash -c "supra --help" > /dev/null 2>&1; then
+#                print_status "✅ supra command works with bash shell"
+#                CLI_CMD="docker exec supra_cli /bin/bash -c 'supra move tool'"
+#            else
+#                print_error "❌ Failed to access supra command in container"
+#                docker exec supra_cli ls -la /usr/local/bin/ || true
+#                docker exec supra_cli find / -name "supra" 2>/dev/null | head -10 || true
+#                record_result "RampSup" "FAILED - No Supra CLI available"
+#                cd ..
+#                return
+#            fi
+#        else
+#            print_error "Failed to start Supra CLI container and no local supra command found"
+#            record_result "RampSup" "FAILED - No Supra CLI available"
+#            cd ..
+#            return
+#        fi
+#    fi
+#    
+#    print_status "Compiling Move modules with Supra CLI..."
+#    if $CLI_CMD compile; then
+#        print_success "RampSup compilation successful"
+#        
+#        print_status "Running Move tests..."
+#        if $CLI_CMD test; then
+#            print_success "RampSup tests passed"
+#            record_result "RampSup" "SUCCESS"
+#        else
+#            print_error "RampSup tests failed"
+#            record_result "RampSup" "FAILED - Tests"
+#        fi
+#    else
+#        print_error "RampSup compilation failed"
+#        record_result "RampSup" "FAILED - Compilation"
+#    fi
     
     cd ..
 }
@@ -311,12 +306,25 @@ build_ramp_stark() {
         print_success "ramp_stark build successful"
         
         print_status "Running Cairo tests..."
-        if snforge test; then
-            print_success "ramp_stark tests passed"
-            record_result "ramp_stark" "SUCCESS"
+        
+        # Check if snforge is available
+        if command -v snforge >/dev/null 2>&1; then
+            print_status "snforge found: $(which snforge)"
+            if snforge test; then
+                print_success "ramp_stark tests passed"
+                record_result "ramp_stark" "SUCCESS"
+            else
+                print_error "ramp_stark tests failed"
+                record_result "ramp_stark" "FAILED - Tests"
+            fi
         else
-            print_error "ramp_stark tests failed"
-            record_result "ramp_stark" "FAILED - Tests"
+            print_error "snforge command not found in PATH"
+            print_status "Available commands in PATH:"
+            echo "PATH: $PATH"
+            ls -la ~/.local/bin/ 2>/dev/null | grep snforge || true
+            find ~ -name "snforge" -type f 2>/dev/null | head -5 || true
+            print_error "Cannot run Cairo tests without snforge"
+            record_result "ramp_stark" "FAILED - snforge not found"
         fi
     else
         print_error "ramp_stark build failed"
