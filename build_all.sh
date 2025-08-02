@@ -164,14 +164,49 @@ build_ramp_sup() {
         CLI_CMD="supra move tool"
     elif docker ps | grep -q supra_cli; then
         print_status "Using Supra CLI Docker container..."
-        CLI_CMD="docker exec supra_cli supra move tool"
+        # Check what's available in the container and find the correct path
+        print_status "Checking Supra CLI container setup..."
+        docker exec supra_cli ls -la /usr/local/bin/ || true
+        docker exec supra_cli ls -la /opt/ || true
+        docker exec supra_cli which supra || docker exec supra_cli find / -name "supra" 2>/dev/null | head -5 || true
+        
+        # Try different possible paths for the supra executable
+        if docker exec supra_cli test -f /usr/local/bin/supra; then
+            CLI_CMD="docker exec supra_cli /usr/local/bin/supra move tool"
+        elif docker exec supra_cli test -f /opt/supra/bin/supra; then
+            CLI_CMD="docker exec supra_cli /opt/supra/bin/supra move tool"
+        elif docker exec supra_cli test -f /supra/supra; then
+            CLI_CMD="docker exec supra_cli /supra/supra move tool"
+        else
+            print_error "Supra executable not found in Docker container"
+            record_result "RampSup" "FAILED - Supra executable not found in container"
+            cd ..
+            return
+        fi
     else
         print_status "Starting Supra CLI Docker container..."
         curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
-        sleep 5
+        sleep 10
         
         if docker ps | grep -q supra_cli; then
-            CLI_CMD="docker exec supra_cli supra move tool"
+            # Check container setup after starting
+            print_status "Verifying Supra CLI in new container..."
+            docker exec supra_cli ls -la /usr/local/bin/ || true
+            docker exec supra_cli which supra || docker exec supra_cli find / -name "supra" 2>/dev/null | head -5 || true
+            
+            # Try different possible paths
+            if docker exec supra_cli test -f /usr/local/bin/supra; then
+                CLI_CMD="docker exec supra_cli /usr/local/bin/supra move tool"
+            elif docker exec supra_cli test -f /opt/supra/bin/supra; then
+                CLI_CMD="docker exec supra_cli /opt/supra/bin/supra move tool"
+            elif docker exec supra_cli test -f /supra/supra; then
+                CLI_CMD="docker exec supra_cli /supra/supra move tool"
+            else
+                print_error "Failed to find Supra executable in container and no local supra command found"
+                record_result "RampSup" "FAILED - No Supra CLI available"
+                cd ..
+                return
+            fi
         else
             print_error "Failed to start Supra CLI container and no local supra command found"
             record_result "RampSup" "FAILED - No Supra CLI available"

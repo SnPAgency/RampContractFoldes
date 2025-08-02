@@ -81,9 +81,28 @@ jobs:
         # Copy RampSup to supra directory for container access
         cp -r RampSup supra/
         
-        # Run supra commands inside the Docker container with proper working directory
-        docker exec -w /supra/RampSup supra_cli supra move tool compile
-        docker exec -w /supra/RampSup supra_cli supra move tool test
+        # Check container setup and find supra executable
+        echo "Checking Supra CLI container setup..."
+        docker exec supra_cli ls -la /usr/local/bin/ || true
+        docker exec supra_cli which supra || docker exec supra_cli find / -name "supra" 2>/dev/null | head -5 || true
+        
+        # Determine the correct supra executable path
+        if docker exec supra_cli test -f /usr/local/bin/supra; then
+          SUPRA_CMD="/usr/local/bin/supra"
+        elif docker exec supra_cli test -f /opt/supra/bin/supra; then
+          SUPRA_CMD="/opt/supra/bin/supra"
+        elif docker exec supra_cli test -f /supra/supra; then
+          SUPRA_CMD="/supra/supra"
+        else
+          echo "ERROR: Supra executable not found in container"
+          exit 1
+        fi
+        
+        echo "Using Supra CLI at: $SUPRA_CMD"
+        
+        # Run supra commands with the correct path
+        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool compile
+        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool test
 
   # Job for Rust/Solana contracts
   solana:
@@ -118,12 +137,8 @@ jobs:
     if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request'
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install Scarb
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
+    - uses: software-mansion/setup-scarb@v1
+    - uses: foundry-rs/setup-snfoundry@v3
     - name: Build and Test ramp_stark
       run: |
         cd ramp_stark
@@ -141,6 +156,7 @@ jobs:
         submodules: recursive
 
     - name: Install all dependencies
+      shell: bash
       run: |
         # Install Rust
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -148,19 +164,38 @@ jobs:
         
         # Install Foundry
         curl -L https://foundry.paradigm.xyz | bash
-        source ~/.bashrc
+        export PATH="$HOME/.foundry/bin:$PATH"
+        source ~/.bashrc || true
         foundryup
         
         # Install Aptos CLI
         curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
         
-        # Install Scarb
+        # Install Scarb with explicit shell handling
+        export SHELL=/bin/bash
         curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
         
-        # Add to PATH
+        # Install StarkNet Foundry (snforge)
+        curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # Verify installations and add to PATH
+        ls -la $HOME/.local/bin/ || true
+        ls -la $HOME/.cargo/bin/ || true
+        ls -la $HOME/.foundry/bin/ || true
+        
+        # Add to PATH for subsequent steps
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        
+        # Test that tools are available
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.foundry/bin:$PATH"
+        which scarb || echo "Scarb not found in PATH"
+        which snforge || echo "snforge not found in PATH"
+        which aptos || echo "Aptos not found in PATH"
+        which forge || echo "Forge not found in PATH"
+        which cargo || echo "Cargo not found in PATH"
 
     - name: Run Complete Workflow
       run: |
