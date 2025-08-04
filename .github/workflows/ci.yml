@@ -36,7 +36,11 @@ jobs:
         submodules: recursive
 
     - name: Install Foundry
-      uses: foundry-rs/foundry-toolchain@v1
+      run: |
+        curl -L https://foundry.paradigm.xyz | bash
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        source $HOME/.bashrc
+        foundryup
 
     - name: Build and Test RampSol
       run: |
