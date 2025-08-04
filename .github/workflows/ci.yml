@@ -36,14 +36,8 @@ jobs:
         submodules: recursive
 
     - name: Install Foundry
-      run: |
-        mkdir -p $HOME/.foundry/bin
-        curl -L https://github.com/foundry-rs/foundry/releases/download/nightly/foundry_nightly_linux_amd64.tar.gz | tar -xz -C $HOME/.foundry/bin
-        chmod +x $HOME/.foundry/bin/*
-        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.foundry/bin:$PATH"
-        foundryup
-
+      uses: foundry-rs/foundry-toolchain@v1
+  
     - name: Build and Test RampSol
       run: |
         cd RampSol
@@ -164,6 +158,12 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v1.18.26/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 
     - name: Cache Cargo dependencies
       uses: actions/cache@v3
