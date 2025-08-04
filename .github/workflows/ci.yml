@@ -9,7 +9,7 @@ jobs:
   # Job for Aptos Move contracts
   aptos:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'RampAptos/') || github.event_name == 'pull_request'
+    if: contains(github.event.head_commit.modified, 'RampAptos/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
       with:
@@ -29,7 +29,7 @@ jobs:
   # Job for Solidity/Foundry contracts
   foundry:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request'
+    if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
       with:
@@ -37,9 +37,11 @@ jobs:
 
     - name: Install Foundry
       run: |
-        curl -L https://foundry.paradigm.xyz | bash
+        mkdir -p $HOME/.foundry/bin
+        curl -L https://github.com/foundry-rs/foundry/releases/download/nightly/foundry_nightly_linux_amd64.tar.gz | tar -xz -C $HOME/.foundry/bin
+        chmod +x $HOME/.foundry/bin/*
         echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        source $HOME/.bashrc
+        export PATH="$HOME/.foundry/bin:$PATH"
         foundryup
 
     - name: Build and Test RampSol
@@ -52,7 +54,7 @@ jobs:
   # Job for Supra Move contracts
   supra:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'RampSup/') || github.event_name == 'pull_request'
+    if: contains(github.event.head_commit.modified, 'RampSup/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
       with:
@@ -156,7 +158,7 @@ jobs:
   # Job for Rust/Solana contracts
   solana:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request'
+    if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
 
@@ -177,13 +179,15 @@ jobs:
     - name: Build and Test ramp_solana
       run: |
         cd ramp_solana
-        cargo build
+        cargo add solana-program-test@1.18.26 --dev
+        cargo add solana-sdk@1.18.26 --dev
+        cargo add tokio --dev
         cargo test-sbf -- --nocapture
 
   # Job for Cairo/StarkNet contracts
   starknet:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request'
+    if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
     - uses: software-mansion/setup-scarb@v1
