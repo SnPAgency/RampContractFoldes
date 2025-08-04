@@ -157,13 +157,27 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@nightly
 
     - name: Install Solana CLI
       run: |
-        sh -c "$(curl -sSfL https://release.solana.com/v1.18.26/install)"
+        sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
         echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        source ~/.bashrc || true
+        
+        # Verify installation
+        echo "Verifying Solana CLI installation..."
+        which solana || echo "solana not found in PATH"
+        solana --version || echo "solana version check failed"
+        
+        # Check if cargo test-sbf is available
+        echo "Checking cargo test-sbf availability..."
+        cargo --list | grep test-sbf || echo "cargo test-sbf not found"
+        
+        # List all available cargo commands for debugging
+        echo "Available cargo commands:"
+        cargo --list | head -20
 
     - name: Cache Cargo dependencies
       uses: actions/cache@v3
