@@ -6,27 +6,39 @@
 
 
 -  [Resource `GlobalStorage`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_GlobalStorage)
+-  [Struct `VaultStore`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultStore)
 -  [Struct `AssetAddedEvent`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_AssetAddedEvent)
 -  [Struct `AssetRemovedEvent`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_AssetRemovedEvent)
 -  [Struct `ContractStateChangedEvent`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ContractStateChangedEvent)
 -  [Struct `OwnerChangedEvent`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_OwnerChangedEvent)
+-  [Struct `RampDeposit`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampDeposit)
+-  [Struct `RampWithdraw`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampWithdraw)
+-  [Struct `VaultChanged`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultChanged)
+-  [Struct `AssetFeeChanged`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_AssetFeeChanged)
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_initialize)
 -  [Function `add_asset`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_add_asset)
 -  [Function `remove_asset`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_remove_asset)
 -  [Function `set_contract_state`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_contract_state)
 -  [Function `set_owner`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_owner)
+-  [Function `on_ramp_deposit`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_on_ramp_deposit)
+-  [Function `off_ramp_withdraw`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_off_ramp_withdraw)
+-  [Function `set_fee`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_fee)
 -  [Function `is_active`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_is_active)
 -  [Function `get_owner`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_owner)
 -  [Function `is_asset_allowed`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_is_asset_allowed)
 -  [Function `get_global_storage`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_global_storage)
+-  [Function `get_allowed_assets`](#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_allowed_assets)
 
 
 <pre><code><b>use</b> <a href="">0x1::error</a>;
 <b>use</b> <a href="">0x1::event</a>;
+<b>use</b> <a href="">0x1::fungible_asset</a>;
 <b>use</b> <a href="">0x1::object</a>;
+<b>use</b> <a href="">0x1::option</a>;
+<b>use</b> <a href="">0x1::primary_fungible_store</a>;
 <b>use</b> <a href="">0x1::signer</a>;
-<b>use</b> <a href="">0x1::table</a>;
+<b>use</b> <a href="">0x1::simple_map</a>;
 </code></pre>
 
 
@@ -36,11 +48,24 @@
 ## Resource `GlobalStorage`
 
 Global Storage
-This resource holds the global state of the RampSup contract.
+This resource holds the global state of the RampAptos contract.
 
 
 <pre><code>#[resource_group_member(#[group = <a href="_ObjectGroup">0x1::object::ObjectGroup</a>])]
 <b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_GlobalStorage">GlobalStorage</a> <b>has</b> key
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultStore"></a>
+
+## Struct `VaultStore`
+
+Vault where assets are stored
+also includes the assets's fee and fa extend ref
+
+
+<pre><code><b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultStore">VaultStore</a> <b>has</b> drop, store
 </code></pre>
 
 
@@ -97,14 +122,76 @@ Event emitted when the owner is changed
 
 
 
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampDeposit"></a>
+
+## Struct `RampDeposit`
+
+Event emitted when a deposit is made to the Ramp protocol
+
+
+<pre><code>#[<a href="">event</a>]
+<b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampDeposit">RampDeposit</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampWithdraw"></a>
+
+## Struct `RampWithdraw`
+
+Event emitted when a withdrawal is made from the Ramp protocol
+
+
+<pre><code>#[<a href="">event</a>]
+<b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RampWithdraw">RampWithdraw</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultChanged"></a>
+
+## Struct `VaultChanged`
+
+Event emitted when the vault address is changed
+
+
+<pre><code>#[<a href="">event</a>]
+<b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_VaultChanged">VaultChanged</a> <b>has</b> drop, store
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_AssetFeeChanged"></a>
+
+## Struct `AssetFeeChanged`
+
+event emitted when the fee to an asset gets changed
+
+
+<pre><code>#[<a href="">event</a>]
+<b>struct</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_AssetFeeChanged">AssetFeeChanged</a> <b>has</b> drop, store
+</code></pre>
+
+
+
 <a id="@Constants_0"></a>
 
 ## Constants
 
 
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENOT_OWNER"></a>
+
+Error code for the wrong contract owner as signer
+
+
+<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENOT_OWNER">ENOT_OWNER</a>: u64 = 1;
+</code></pre>
+
+
+
 <a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EASSET_EXISTS"></a>
 
-Error code for the asset already exists in the allowed assets table
+Error code for the asset already exists in the allowed assets simple_map
 
 
 <pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EASSET_EXISTS">EASSET_EXISTS</a>: u64 = 3;
@@ -112,9 +199,29 @@ Error code for the asset already exists in the allowed assets table
 
 
 
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EASSET_NOT_ALLOWED"></a>
+
+Error code for assets not allowed
+
+
+<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EASSET_NOT_ALLOWED">EASSET_NOT_ALLOWED</a>: u64 = 4;
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EINSUFICIENT_ASSET_BALANCE"></a>
+
+Error code for insufficient asset balance in contract
+
+
+<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_EINSUFICIENT_ASSET_BALANCE">EINSUFICIENT_ASSET_BALANCE</a>: u64 = 5;
+</code></pre>
+
+
+
 <a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENO_ASSET"></a>
 
-Error code for the asset not found in the allowed assets table
+Error code for the asset not found in the allowed assets simple_map
 
 
 <pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENO_ASSET">ENO_ASSET</a>: u64 = 2;
@@ -134,24 +241,12 @@ Error code for the contract state not found
 
 
 
-<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENO_OWNER"></a>
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RAMP_APTOS"></a>
 
-Error code for the wrong contract owner as signer
-
-
-<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_ENO_OWNER">ENO_OWNER</a>: u64 = 1;
-</code></pre>
+global storage name
 
 
-
-<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RAMP_SUP"></a>
-
-
-* Global Storage
-
-
-
-<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RAMP_SUP">RAMP_SUP</a>: <a href="">vector</a>&lt;u8&gt; = [83, 85, 80, 82, 65, 95, 82, 65, 77, 80, 95, 71, 76, 79, 66, 65, 76, 95, 83, 84, 79, 82, 65, 71, 69];
+<pre><code><b>const</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_RAMP_APTOS">RAMP_APTOS</a>: <a href="">vector</a>&lt;u8&gt; = [82, 65, 77, 80, 95, 83, 85, 80, 82, 65, 95, 71, 76, 79, 66, 65, 76, 95, 83, 84, 79, 82, 65, 71, 69];
 </code></pre>
 
 
@@ -173,7 +268,7 @@ Error code for the wrong contract owner as signer
 
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_add_asset">add_asset</a>(owner: &<a href="">signer</a>, asset: <b>address</b>)
+<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_add_asset">add_asset</a>(owner: &<a href="">signer</a>, asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;, fee: u64)
 </code></pre>
 
 
@@ -184,7 +279,7 @@ Error code for the wrong contract owner as signer
 
 
 
-<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_remove_asset">remove_asset</a>(owner: &<a href="">signer</a>, asset: <b>address</b>)
+<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_remove_asset">remove_asset</a>(owner: &<a href="">signer</a>, asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;, asset_recipient: <b>address</b>)
 </code></pre>
 
 
@@ -207,6 +302,43 @@ Error code for the wrong contract owner as signer
 
 
 <pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_owner">set_owner</a>(owner: &<a href="">signer</a>, new_owner: <b>address</b>)
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_on_ramp_deposit"></a>
+
+## Function `on_ramp_deposit`
+
+Deposit a fungible asset into the asset's vault
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_on_ramp_deposit">on_ramp_deposit</a>(user: &<a href="">signer</a>, asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;, amount: u64)
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_off_ramp_withdraw"></a>
+
+## Function `off_ramp_withdraw`
+
+Withdraw an asset for the vault
+only called by the owner of the module
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_off_ramp_withdraw">off_ramp_withdraw</a>(admin: &<a href="">signer</a>, asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;, recipient: <b>address</b>, amount: u64)
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_fee"></a>
+
+## Function `set_fee`
+
+Change the fee percentage charged on an asset
+
+
+<pre><code><b>public</b> entry <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_set_fee">set_fee</a>(admin: &<a href="">signer</a>, asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;, new_fee: u64)
 </code></pre>
 
 
@@ -242,7 +374,7 @@ Error code for the wrong contract owner as signer
 
 
 <pre><code>#[view]
-<b>public</b> <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_is_asset_allowed">is_asset_allowed</a>(asset: <b>address</b>): bool
+<b>public</b> <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_is_asset_allowed">is_asset_allowed</a>(asset: <a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;): bool
 </code></pre>
 
 
@@ -255,4 +387,16 @@ Error code for the wrong contract owner as signer
 
 <pre><code>#[view]
 <b>public</b> <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_global_storage">get_global_storage</a>(): (bool, <b>address</b>)
+</code></pre>
+
+
+
+<a id="0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_allowed_assets"></a>
+
+## Function `get_allowed_assets`
+
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="ramp.md#0x524c70611ce8cb726117349e69c6ed2a4dab2b79f8b5d4c11c6d94994e184fc8_ramp_get_allowed_assets">get_allowed_assets</a>(): <a href="">vector</a>&lt;<a href="_Object">object::Object</a>&lt;<a href="_Metadata">fungible_asset::Metadata</a>&gt;&gt;
 </code></pre>

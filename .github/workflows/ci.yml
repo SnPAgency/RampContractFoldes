@@ -1,0 +1,305 @@
+name: SnappiPay CI/CD Pipeline
+
+on:
+  push:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Job for Aptos Move contracts
+  aptos:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampAptos/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Aptos CLI
+      run: |
+        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Build and Test RampAptos
+      run: |
+        cd RampAptos
+        aptos move compile
+        aptos move test
+
+  # Job for Solidity/Foundry contracts
+  foundry:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Build and Test RampSol
+      run: |
+        cd RampSol
+        forge install
+        forge build
+        forge test
+
+  # Job for Supra Move contracts
+  supra:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'RampSup/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+#    - name: Install Supra CLI
+#      run: |
+#        # Create supra directory if it doesn't exist
+#        mkdir -p supra
+#        cd supra
+#        
+#        # Download and start Supra CLI container
+#        curl https://raw.githubusercontent.com/supra-labs/supra-dev-hub/refs/heads/main/Scripts/cli/compose.yaml | docker compose -f - up -d
+#        
+#        # Wait for container to be ready and verify it's running
+#        sleep 15
+#        docker ps --all
+#        
+#        # Check container logs to understand what's happening
+#        echo "Container logs:"
+#        docker logs supra_cli || true
+#        
+#        # Inspect the container to find the supra binary
+#        echo "Inspecting container filesystem:"
+#        docker exec supra_cli ls -la / || true
+#        docker exec supra_cli ls -la /usr/local/bin/ || true
+#        docker exec supra_cli ls -la /opt/ || true
+#        docker exec supra_cli find / -name "supra" -type f 2>/dev/null | head -10 || true
+#        
+#        # Try different ways to access supra
+#        echo "Testing supra command access methods:"
+#        if docker exec supra_cli which supra; then
+#          echo "✅ supra found in PATH"
+#          SUPRA_LOCATION=$(docker exec supra_cli which supra)
+#        elif docker exec supra_cli test -f /usr/local/bin/supra; then
+#          echo "✅ supra found at /usr/local/bin/supra"
+#          SUPRA_LOCATION="/usr/local/bin/supra"
+#        elif docker exec supra_cli test -f /opt/supra/bin/supra; then
+#          echo "✅ supra found at /opt/supra/bin/supra"
+#          SUPRA_LOCATION="/opt/supra/bin/supra"
+#        else
+#          echo "❌ supra binary not found, trying alternative approaches"
+#          # Check if it's a shell script or alias
+#          docker exec supra_cli env | grep -i supra || true
+#          docker exec supra_cli alias | grep -i supra || true
+#        fi
+#        
+#        # Test the supra command
+#        echo "Testing supra command:"
+#        if [ ! -z "$SUPRA_LOCATION" ]; then
+#          docker exec supra_cli $SUPRA_LOCATION --help || {
+#            echo "❌ supra command failed, checking permissions and dependencies"
+#            docker exec supra_cli ls -la $SUPRA_LOCATION
+#            docker exec supra_cli file $SUPRA_LOCATION
+#            exit 1
+#          }
+#        else
+#          # Try running supra directly in case it's in PATH but which failed
+#          docker exec supra_cli supra --help || {
+#            echo "❌ Direct supra execution failed"
+#            exit 1
+#          }
+#        fi
+#        
+#        cd ..
+    
+#    - name: Build and Test RampSup
+#      run: |
+#        # Copy RampSup to supra directory for container access
+#        cp -r RampSup supra/
+#        
+#        # Check container setup and verify supra command is available
+#        echo "Checking Supra CLI container setup..."
+#        docker exec supra_cli ls -la / || true
+#        docker exec supra_cli which supra || echo "supra not in PATH, will use direct execution"
+#        
+#        # Test if supra command works directly
+#        echo "Testing supra command availability..."
+#        if docker exec supra_cli supra --help > /dev/null 2>&1; then
+#          echo "✅ supra command works directly"
+#          SUPRA_CMD="supra"
+#        elif docker exec supra_cli /bin/bash -c "supra --help" > /dev/null 2>&1; then
+#          echo "✅ supra command works with bash shell"
+#          SUPRA_CMD="/bin/bash -c supra"
+#        else
+#          echo "❌ ERROR: supra command not accessible in container"
+#          docker exec supra_cli ls -la /usr/local/bin/ || true
+#          docker exec supra_cli find / -name "supra" 2>/dev/null | head -10 || true
+#          exit 1
+#        fi
+#        
+#        echo "Using Supra CLI command: $SUPRA_CMD"
+        
+#        # Run supra commands using the working approach
+#        echo "Compiling Move modules..."
+#        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool compile
+#        
+#        echo "Running Move tests..."
+#        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool test
+
+  # Job for Rust/Solana contracts
+  solana:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ramp_solana/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build and Test ramp_solana
+      run: |
+        cd ramp_solana
+        cargo build
+        cargo test
+
+  # Job for Cairo/StarkNet contracts
+  starknet:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v4
+    - uses: software-mansion/setup-scarb@v1
+    - uses: foundry-rs/setup-snfoundry@v3
+      with:
+        version: '0.47.0'
+    - name: Build and Test ramp_stark
+      run: |
+        cd ramp_stark
+        scarb build
+        snforge test
+
+  # Job to run complete workflow
+  complete-workflow:
+    runs-on: ubuntu-latest
+    needs: [aptos, foundry, supra, solana, starknet]
+    if: always()
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install all dependencies
+      shell: bash
+      run: |
+        # Install Rust
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source ~/.cargo/env
+        
+        # Install Foundry
+        curl -L https://foundry.paradigm.xyz | bash
+        export PATH="$HOME/.foundry/bin:$PATH"
+        source ~/.bashrc || true
+        foundryup
+        
+        # Install Aptos CLI
+        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+        
+        # Install Scarb with explicit shell handling
+        export SHELL=/bin/bash
+        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+        
+        # Install StarkNet Foundry (snforge) with proper setup
+        echo "Installing StarkNet Foundry..."
+        curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+        
+        # Source bashrc to get snfoundryup in PATH
+        source ~/.bashrc || true
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # Run snfoundryup to actually install the tools
+        echo "Running snfoundryup to install StarkNet Foundry tools..."
+        if command -v snfoundryup >/dev/null 2>&1; then
+          snfoundryup
+        else
+          echo "snfoundryup not found, trying direct installation..."
+          # Try installing via cargo if snfoundryup is not available
+          cargo install --git https://github.com/foundry-rs/starknet-foundry --tag v0.47.0 --bins --locked || true
+        fi
+        
+        # Wait a moment for installation to complete
+        sleep 3
+        
+        # Check if snforge was installed correctly
+        if [ -f "$HOME/.local/bin/snforge" ]; then
+          echo "✅ snforge found at $HOME/.local/bin/snforge"
+          chmod +x "$HOME/.local/bin/snforge"
+        elif command -v snforge >/dev/null 2>&1; then
+          echo "✅ snforge found in PATH: $(which snforge)"
+        else
+          echo "❌ snforge still not found after installation attempts"
+        fi
+        
+        # Verify installations and add to PATH
+        ls -la $HOME/.local/bin/ || true
+        ls -la $HOME/.cargo/bin/ || true
+        ls -la $HOME/.foundry/bin/ || true
+        
+        # Add to PATH for subsequent steps
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        
+        # Test that tools are available with comprehensive verification
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.foundry/bin:$PATH"
+        
+        echo "Verifying tool installations:"
+        if which scarb > /dev/null 2>&1; then
+          echo "✅ Scarb: $(which scarb) - $(scarb --version)"
+        else
+          echo "❌ Scarb not found in PATH"
+        fi
+        
+        if which snforge > /dev/null 2>&1; then
+          echo "✅ snforge: $(which snforge) - $(snforge --version)"
+        else
+          echo "❌ snforge not found in PATH"
+          # Try to find it manually
+          find $HOME -name "snforge" -type f 2>/dev/null | head -5
+        fi
+        
+        if which aptos > /dev/null 2>&1; then
+          echo "✅ Aptos: $(which aptos) - $(aptos --version)"
+        else
+          echo "❌ Aptos not found in PATH"
+        fi
+        
+        if which forge > /dev/null 2>&1; then
+          echo "✅ Forge: $(which forge) - $(forge --version)"
+        else
+          echo "❌ Forge not found in PATH"
+        fi
+        
+        if which cargo > /dev/null 2>&1; then
+          echo "✅ Cargo: $(which cargo) - $(cargo --version)"
+        else
+          echo "❌ Cargo not found in PATH"
+        fi
+
+    - name: Run Complete Workflow
+      run: |
+        chmod +x build_all.sh
+        ./build_all.sh

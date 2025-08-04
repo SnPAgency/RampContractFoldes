@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.23;
 /**
-    * @title RampContract
-    * @dev This contract is a placeholder for the Ramp protocol implementation.
-    * It will include functions and state variables related to the Ramp protocol.
-    * The Ramp protocol is designed to facilitate the exchange of assets in a decentralized manner.
-    * This contract will be expanded in future iterations to include the full functionality of the Ramp protocol.
-    * The Ramp protocol aims to provide a secure and efficient way to exchange assets with minimal reliance on
-    * centralized intermediaries.
-
+ * @title RampContract
+ * @dev This contract is a placeholder for the Ramp protocol implementation.
+ * It will include functions and state variables related to the Ramp protocol.
+ * The Ramp protocol is designed to facilitate the exchange of assets in a decentralized manner.
+ * This contract will be expanded in future iterations to include the full functionality of the Ramp protocol.
+ * The Ramp protocol aims to provide a secure and efficient way to exchange assets with minimal reliance on
+ * centralized intermediaries.
  */
-
 
 import {PausableUpgradeable} from "@openzeppelin/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/proxy/utils/Initializable.sol";
@@ -18,7 +16,6 @@ import {OwnableUpgradeable} from "@openzeppelin/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 
 contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable {
-
     /**
      * @dev Errors
      */
@@ -26,13 +23,10 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
     error Asset__InvalidAddress(address asset);
     error Invalid__VaultAddress(address vault);
 
-
-
-
     /**
      * @dev State Variables
      */
-    
+
     // Allowed Assets
     mapping(address => bool) public allowedAssets;
 
@@ -53,8 +47,6 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
     // This variable holds the percentage of the fee charged for each transaction.
     mapping(address => uint256) public assetFeePercentage;
 
-
-
     /**
      * @dev Events
      */
@@ -66,31 +58,16 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
     event AssetAllowedRemoved(address indexed asset);
 
     // Event emitted when a deposit is made to the Ramp protocol
-    event RampDeposit(
-        address indexed asset,
-        uint256 amount,
-        address indexed sender
-    );
+    event RampDeposit(address indexed asset, uint256 amount, address indexed sender);
 
     // Event emitted when a withdrawal is made from the Ramp protocol
-    event RampWithdraw(
-        address indexed asset,
-        uint256 amount,
-        address indexed recipient
-    );
+    event RampWithdraw(address indexed asset, uint256 amount, address indexed recipient);
 
     // Event emitted when Ether is withdrawn from the contract
-    event EthWithdrawn(
-        uint256 amount,
-        address indexed recipient
-    );
+    event EthWithdrawn(uint256 amount, address indexed recipient);
 
     // Event emitted when the vault address is changed
-    event VaultChanged(
-        address indexed oldVault,
-        address indexed newVault
-    );
-
+    event VaultChanged(address indexed oldVault, address indexed newVault);
 
     /**
      * @dev Functions
@@ -118,6 +95,7 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * This function is used to unpause the contract, allowing state changes again.
      * Only the Controller can call this function.
      */
+
     function unpause() external onlyOwner {
         _unpause();
     }
@@ -145,7 +123,6 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
         // If the asset is already allowed, revert the transaction
         revert Asset__AlreadyAllowed(asset);
     }
-
 
     /**
      * @dev Remove an asset from the allowed assets list.
@@ -184,11 +161,7 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @param amount The amount of the asset to be deposited.
      * @param sender The address of the sender.
      */
-    function onRampDeposit(
-        address asset,
-        uint256 amount,
-        address sender
-    ) external whenNotPaused {
+    function onRampDeposit(address asset, uint256 amount, address sender) external whenNotPaused {
         // Placeholder for deposit logic
         if (!allowedAssets[asset]) {
             revert Asset__InvalidAddress(asset);
@@ -207,11 +180,7 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @param amount The amount of the asset to be withdrawn.
      * @param recipient The address of the recipient.
      */
-    function offRampWithdraw(
-        address asset,
-        uint256 amount,
-        address recipient
-    ) external whenNotPaused onlyOwner {
+    function offRampWithdraw(address asset, uint256 amount, address recipient) external whenNotPaused onlyOwner {
         // Placeholder for withdrawal logic
         if (!allowedAssets[asset]) {
             revert Asset__InvalidAddress(asset);
@@ -237,7 +206,6 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
         vault.transfer(amount);
         emit EthWithdrawn(amount, vault);
     }
-
 
     /**
      * @dev Fallback function to receive Ether.
@@ -292,6 +260,4 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
         vault = _vault;
         emit VaultChanged(vault, _vault);
     }
-
-
 }
