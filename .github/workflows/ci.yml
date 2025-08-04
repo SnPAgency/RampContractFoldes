@@ -213,11 +213,12 @@ jobs:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source ~/.cargo/env
         
-        # Install Foundry
-        curl -L https://foundry.paradigm.xyz | bash
+        # Install Foundry directly
+        mkdir -p $HOME/.foundry/bin
+        curl -L https://github.com/foundry-rs/foundry/releases/download/nightly/foundry_nightly_linux_amd64.tar.gz | tar -xz -C $HOME/.foundry/bin
+        chmod +x $HOME/.foundry/bin/*
         echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        source $HOME/.bashrc
-        foundryup
+        export PATH="$HOME/.foundry/bin:$PATH"
 
         
         # Install Aptos CLI
