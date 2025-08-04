@@ -215,9 +215,9 @@ jobs:
         
         # Install Foundry
         curl -L https://foundry.paradigm.xyz | bash
-        export PATH="$HOME/.foundry/bin:$PATH"
-        source ~/.bashrc || true
-        ~/.foundry/bin/foundryup
+        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        source $HOME/.bashrc
+        foundryup
 
         
         # Install Aptos CLI
