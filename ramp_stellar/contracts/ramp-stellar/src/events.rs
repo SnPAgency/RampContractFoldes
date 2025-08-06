@@ -14,8 +14,8 @@ use soroban_sdk::{Env, Address, Symbol};
 /// 
 /// * topics - [ASSET_ADDED, asset]
 /// * data - [fee_percentage]
-pub fn _emit_asset_added(env: Env, asset: Address, fee_percentage: u128) {
-    let topics = (Symbol::new(&env, "ASSET_ADDED"), asset);
+pub fn emit_asset_added(env: &Env, asset: Address, fee_percentage: u128) {
+    let topics = (Symbol::new(env, "ASSET_ADDED"), asset);
 
     env.events().publish(topics, fee_percentage);
 }
@@ -33,8 +33,8 @@ pub fn _emit_asset_added(env: Env, asset: Address, fee_percentage: u128) {
 /// 
 /// * topics - [ASSET_REMOVED, asset]
 /// * data - [balance_recipient, amount]
-pub fn _emit_asset_removed(env: Env, asset: Address, balance_recipient: Address, amount: u128) {
-    let topics = (Symbol::new(&env, "ASSET_REMOVED"), asset);
+pub fn emit_asset_removed(env: &Env, asset: Address, balance_recipient: Address, amount: u128) {
+    let topics = (Symbol::new(env, "ASSET_REMOVED"), asset);
 
     env.events().publish(topics, (balance_recipient, amount));
 }
@@ -51,8 +51,8 @@ pub fn _emit_asset_removed(env: Env, asset: Address, balance_recipient: Address,
 /// 
 /// * topics - [VAULT_ADDRESS_CHANGED, old_vault_address]
 /// * data - [new_vault_address]
-pub fn emit_vault_address_changed(env: Env, old_vault_address: Address, new_vault_address: Address) {
-    let topics = (Symbol::new(&env, "VAULT_ADDRESS_CHANGED"), old_vault_address);
+pub fn emit_vault_address_changed(env: &Env, old_vault_address: Address, new_vault_address: Address) {
+    let topics = (Symbol::new(env, "VAULT_ADDRESS_CHANGED"), old_vault_address);
 
     env.events().publish(topics, new_vault_address);
 }
@@ -70,8 +70,8 @@ pub fn emit_vault_address_changed(env: Env, old_vault_address: Address, new_vaul
 /// 
 /// * topics - [ASSET_FEE_PERCENTAGE_CHANGED, asset]
 /// * data - [old_fee_percentage, new_fee_percentage]
-pub fn _emit_asset_fee_percentage_changed(env: Env, asset: Address, old_fee_percentage: u128, new_fee_percentage: u128) {
-    let topics = (Symbol::new(&env, "ASSET_FEE_PERCENTAGE_CHANGED"), asset);
+pub fn emit_asset_fee_percentage_changed(env: &Env, asset: Address, old_fee_percentage: u128, new_fee_percentage: u128) {
+    let topics = (Symbol::new(env, "ASSET_FEE_PERCENTAGE_CHANGED"), asset);
 
     env.events().publish(topics, (old_fee_percentage, new_fee_percentage));
 }
@@ -89,8 +89,8 @@ pub fn _emit_asset_fee_percentage_changed(env: Env, asset: Address, old_fee_perc
 /// 
 /// * topics - [ASSET_REVENUE_CHANGED, asset]
 /// * data - [old_revenue, new_revenue]
-pub fn _emit_asset_revenue_changed(env: Env, asset: Address, old_revenue: u128, new_revenue: u128) {
-    let topics = (Symbol::new(&env, "ASSET_REVENUE_CHANGED"), asset);
+pub fn emit_asset_revenue_changed(env: &Env, asset: Address, old_revenue: u128, new_revenue: u128) {
+    let topics = (Symbol::new(env, "ASSET_REVENUE_CHANGED"), asset);
 
     env.events().publish(topics, (old_revenue, new_revenue));
 }

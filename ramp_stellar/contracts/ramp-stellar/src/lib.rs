@@ -9,7 +9,7 @@ mod events;
 mod errors;
 
 use events::*;
-use errors::*;
+use errors::RampContractError;
 
 /**
  * @title RampContract
@@ -27,6 +27,7 @@ use errors::*;
  */
 
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RampContractState {
     // Key for the vault address of the contract
     VaultAddress,
@@ -43,6 +44,7 @@ pub enum RampContractState {
 
 // information about an asset used
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct AssetEntry {
     asset: Address,
     info: AssetInfo,
@@ -51,6 +53,7 @@ struct AssetEntry {
 
 //additional information about the asset
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct AssetInfo {
     asset_fee_percentage: u128,
     asset_revenue: u128,
@@ -69,14 +72,14 @@ impl RampContract {
 
     #[only_owner]
     #[when_not_paused]
-    pub fn add_asset(env: &Env, _asset: Address, _fee_percentage: u128) {
-        
+    pub fn add_asset(env: &Env, asset: Address, fee_percentage: u128) {
+        emit_asset_added(env, asset, fee_percentage);
     }
 
     #[only_owner]
     #[when_not_paused]
-    pub fn remove_asset(env: &Env, _asset: Address) {
-        
+    pub fn remove_asset(env: &Env, asset: Address, balance_recipient: Address) {
+        emit_asset_removed(env, asset, balance_recipient, 0);
     }
 
     #[only_owner]
@@ -102,19 +105,20 @@ impl RampContract {
         env.storage().instance().set(&vault_address_key, &current_vault);
         env.storage().instance().extend_ttl(50, 100);
 
-        emit_vault_address_changed(env.clone(), old_vault_address, new_vault_address);
+        emit_vault_address_changed(env, old_vault_address, new_vault_address);
     }
 
     #[only_owner]
     #[when_not_paused]
-    pub fn change_fee_percentage(env: &Env, _asset: Address, _new_fee_percentage: u128) {
+    pub fn change_asset_revenue(env: &Env, asset: Address, new_revenue: u128) {
         
+        emit_asset_revenue_changed(env, asset,0, new_revenue);
     }
 
     #[only_owner]
     #[when_not_paused]
-    pub fn change_asset_fee_percentage(env: &Env, _asset: Address, _new_fee_percentage: u128) {
-        
+    pub fn change_asset_fee_percentage(env: &Env, asset: Address, new_fee_percentage: u128) {
+        emit_asset_fee_percentage_changed(env, asset, 0, new_fee_percentage);
     }
 }
 //Ownable implimatation for the contract    

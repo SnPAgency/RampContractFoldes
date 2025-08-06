@@ -280,6 +280,11 @@ jobs:
         # Install Aptos CLI
         curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
         
+        # Install Stellar CLI dependencies and CLI
+        sudo apt update
+        sudo apt install -y libdbus-1-dev pkg-config libudev-dev
+        cargo install --locked stellar-cli@23.0.0
+        
         # Install Scarb with explicit shell handling
         export SHELL=/bin/bash
         curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
@@ -359,6 +364,12 @@ jobs:
           echo "✅ Cargo: $(which cargo) - $(cargo --version)"
         else
           echo "❌ Cargo not found in PATH"
+        fi
+        
+        if which stellar > /dev/null 2>&1; then
+          echo "✅ Stellar: $(which stellar) - $(stellar --version)"
+        else
+          echo "❌ Stellar not found in PATH"
         fi
 
     - name: Run Complete Workflow
