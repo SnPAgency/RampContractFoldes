@@ -203,35 +203,38 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_stellar/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+    
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ramp_stellar/target
+          key: ${{ runner.os }}-stellar-cargo-${{ hashFiles('ramp_stellar/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stellar-cargo-
+            
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+        
+      - name: Install Stellar CLI (cached)
+        run: |
+          sudo apt update
+          sudo apt install -y libdbus-1-dev pkg-config libudev-dev
+          if ! command -v stellar &> /dev/null; then
+            cargo install --locked stellar-cli@23.0.0
+          fi
+          stellar --version
+        
+      - name: Build and Test ramp_stellar
+        run: |
+          cd ramp_stellar
+          stellar contract build
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: wasm32v1-none
-
-    - name: Install Stellar CLI
-      run: |
-        sudo apt update
-        sudo apt install -y libdbus-1-dev pkg-config libudev-dev
-        cargo install --locked stellar-cli@23.0.0
-        stellar --version
-
-    - name: Cache Cargo dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          ramp_stellar/target/
-        key: ${{ runner.os }}-stellar-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Build and Test ramp_stellar
-      run: |
-        cd ramp_stellar
-        stellar contract build
 
   # Job for StarkNet Cairo contracts
   starknet:
@@ -281,6 +284,7 @@ jobs:
         curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
         
         # Install Stellar CLI dependencies and CLI
+        rustup target add wasm32v1-none
         sudo apt update
         sudo apt install -y libdbus-1-dev pkg-config libudev-dev
         cargo install --locked stellar-cli@23.0.0
