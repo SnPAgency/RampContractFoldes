@@ -282,6 +282,39 @@ build_ramp_solana() {
     cd ..
 }
 
+# Function to build ramp_stellar (Rust/Stellar)
+build_ramp_stellar() {
+    print_header "Building ramp_stellar (Stellar Soroban)"
+    
+    if [ ! -d "ramp_stellar" ]; then
+        print_warning "ramp_stellar directory not found, skipping..."
+        record_result "ramp_stellar" "SKIPPED"
+        return
+    fi
+    
+    cd ramp_stellar
+    
+    # Check if stellar CLI is installed
+    if ! command_exists stellar; then
+        print_error "Stellar CLI not found. Please install it first:"
+        print_error "cargo install --locked stellar-cli@23.0.0"
+        record_result "ramp_stellar" "FAILED"
+        cd ..
+        return
+    fi
+    
+    print_status "Building Stellar contracts..."
+    if stellar contract build; then
+        print_success "ramp_stellar build completed successfully"
+        record_result "ramp_stellar" "SUCCESS"
+    else
+        print_error "ramp_stellar build failed"
+        record_result "ramp_stellar" "FAILED"
+    fi
+    
+    cd ..
+}
+
 # Function to build ramp_stark (Cairo/Scarb)
 build_ramp_stark() {
     print_header "Building ramp_stark (Cairo/Scarb)"
@@ -344,6 +377,7 @@ main() {
     build_ramp_sol
     build_ramp_sup
     build_ramp_solana
+    build_ramp_stellar
     build_ramp_stark
     
     # Print summary

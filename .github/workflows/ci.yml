@@ -26,7 +26,7 @@ jobs:
         aptos move compile
         aptos move test
 
-  # Job for Solidity/Foundry contracts
+  # Job for Solidity Foundry contracts
   foundry:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request' || github.event_name == 'push'
@@ -149,7 +149,7 @@ jobs:
 #        echo "Running Move tests..."
 #        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool test
 
-  # Job for Rust/Solana contracts
+  # Job for Solana Native Rust contracts
   solana:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request' || github.event_name == 'push'
@@ -198,16 +198,57 @@ jobs:
         cargo add tokio --dev
         cargo test-sbf -- --nocapture
 
-  # Job for Cairo/StarkNet contracts
+  # Job for Stellar Soroban contracts
+  stellar:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_stellar/') || github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+    
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ramp_stellar/target
+          key: ${{ runner.os }}-stellar-cargo-${{ hashFiles('ramp_stellar/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-stellar-cargo-
+            
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+        
+      - name: Install Stellar CLI (cached)
+        run: |
+          sudo apt update
+          sudo apt install -y libdbus-1-dev pkg-config libudev-dev
+          if ! command -v stellar &> /dev/null; then
+            cargo install --locked stellar-cli@23.0.0
+          fi
+          stellar --version
+        
+      - name: Build and Test ramp_stellar
+        run: |
+          cd ramp_stellar
+          stellar contract build
+
+
+  # Job for StarkNet Cairo contracts
   starknet:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
     - uses: software-mansion/setup-scarb@v1
-    - uses: foundry-rs/setup-snfoundry@v3
+    - uses: foundry-rs/setup-snfoundry@v4
       with:
-        version: '0.47.0'
+        version: '0.48.0'
+    - name: Install Universal Sierra Compiler
+      run: |
+        curl -L https://raw.githubusercontent.com/software-mansion/universal-sierra-compiler/master/scripts/install.sh | sh
     - name: Build and Test ramp_stark
       run: |
         cd ramp_stark
@@ -217,7 +258,7 @@ jobs:
   # Job to run complete workflow
   complete-workflow:
     runs-on: ubuntu-latest
-    needs: [aptos, foundry, supra, solana, starknet]
+    needs: [aptos, foundry, supra, solana, stellar, starknet]
     if: always()
     steps:
     - uses: actions/checkout@v4
@@ -241,6 +282,12 @@ jobs:
         
         # Install Aptos CLI
         curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+        
+        # Install Stellar CLI dependencies and CLI
+        rustup target add wasm32v1-none
+        sudo apt update
+        sudo apt install -y libdbus-1-dev pkg-config libudev-dev
+        cargo install --locked stellar-cli@23.0.0
         
         # Install Scarb with explicit shell handling
         export SHELL=/bin/bash
@@ -321,6 +368,12 @@ jobs:
           echo "✅ Cargo: $(which cargo) - $(cargo --version)"
         else
           echo "❌ Cargo not found in PATH"
+        fi
+        
+        if which stellar > /dev/null 2>&1; then
+          echo "✅ Stellar: $(which stellar) - $(stellar --version)"
+        else
+          echo "❌ Stellar not found in PATH"
         fi
 
     - name: Run Complete Workflow

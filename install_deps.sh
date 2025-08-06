@@ -106,6 +106,66 @@ install_scarb() {
     print_success "Scarb installed successfully"
 }
 
+install_stellar_cli() {
+    print_header "Installing Stellar CLI"
+    
+    if command_exists stellar; then
+        print_success "Stellar CLI already installed"
+        stellar --version
+        return
+    fi
+    
+    print_status "Installing Stellar CLI..."
+    
+    # Detect OS and architecture
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    
+    case $ARCH in
+        x86_64) ARCH="x86_64" ;;
+        arm64|aarch64) ARCH="aarch64" ;;
+        *) print_error "Unsupported architecture: $ARCH"; return 1 ;;
+    esac
+    
+    case $OS in
+        linux) OS="linux" ;;
+        darwin) OS="macos" ;;
+        *) print_error "Unsupported OS: $OS"; return 1 ;;
+    esac
+    
+    # Download and install Stellar CLI
+    STELLAR_VERSION="21.0.0"  # Latest stable version
+    STELLAR_URL="https://github.com/stellar/stellar-cli/releases/download/v${STELLAR_VERSION}/stellar-cli-${STELLAR_VERSION}-${ARCH}-unknown-${OS}-gnu.tar.gz"
+    
+    if [ "$OS" = "macos" ]; then
+        STELLAR_URL="https://github.com/stellar/stellar-cli/releases/download/v${STELLAR_VERSION}/stellar-cli-${STELLAR_VERSION}-${ARCH}-apple-darwin.tar.gz"
+    fi
+    
+    print_status "Downloading Stellar CLI from: $STELLAR_URL"
+    
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download and extract
+    curl -L "$STELLAR_URL" -o stellar-cli.tar.gz
+    tar -xzf stellar-cli.tar.gz
+    
+    # Install to ~/.local/bin
+    mkdir -p ~/.local/bin
+    cp stellar ~/.local/bin/
+    chmod +x ~/.local/bin/stellar
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
+    
+    # Add to PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+    
+    print_success "Stellar CLI installed successfully"
+}
+
 install_node_deps() {
     print_header "Installing Node.js Dependencies"
     
@@ -168,6 +228,7 @@ main() {
     install_foundry
     install_aptos_cli
     install_scarb
+    install_stellar_cli
     install_node_deps
     update_shell_profile
     
@@ -179,6 +240,7 @@ main() {
     echo "Foundry: $(command_exists forge && echo "✅ Installed" || echo "❌ Missing")"
     echo "Aptos CLI: $(command_exists aptos && echo "✅ Installed" || echo "❌ Missing")"
     echo "Scarb: $(command_exists scarb && echo "✅ Installed" || echo "❌ Missing")"
+    echo "Stellar CLI: $(command_exists stellar && echo "✅ Installed" || echo "❌ Missing")"
     
     print_success "Installation completed!"
     print_status "You can now run './build_all.sh' to build all projects"
