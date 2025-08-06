@@ -1,6 +1,6 @@
 # SnappiPay - Makefile for Smart Contracts Project
 
-.PHONY: all build test clean install-deps help aptos sol supra solana stark
+.PHONY: all build test clean install-deps help aptos sol supra solana stellar stark
 
 # Default target
 all: build test
@@ -18,6 +18,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@if [ -d "RampSol" ]; then cd RampSol && forge clean; fi
 	@if [ -d "ramp_solana" ]; then cd ramp_solana && cargo clean; fi
+	@if [ -d "ramp_stellar" ]; then cd ramp_stellar && cargo clean; fi
 	@if [ -d "ramp_stark" ]; then cd ramp_stark && scarb clean; fi
 	@echo "Clean completed"
 
@@ -43,6 +44,10 @@ supra:
 solana:
 	@echo "Building ramp_solana..."
 	@if [ -d "ramp_solana" ]; then cd ramp_solana && cargo build && cargo test; else echo "ramp_solana not found"; fi
+
+stellar:
+	@echo "Building ramp_stellar..."
+	@if [ -d "ramp_stellar" ]; then cd ramp_stellar && stellar contract build; else echo "ramp_stellar not found"; fi
 
 stark:
 	@echo "Building ramp_stark..."

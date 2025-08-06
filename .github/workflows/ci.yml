@@ -26,7 +26,7 @@ jobs:
         aptos move compile
         aptos move test
 
-  # Job for Solidity/Foundry contracts
+  # Job for Solidity Foundry contracts
   foundry:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'RampSol/') || github.event_name == 'pull_request' || github.event_name == 'push'
@@ -149,7 +149,7 @@ jobs:
 #        echo "Running Move tests..."
 #        docker exec -w /supra/RampSup supra_cli $SUPRA_CMD move tool test
 
-  # Job for Rust/Solana contracts
+  # Job for Solana Native Rust contracts
   solana:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request' || github.event_name == 'push'
@@ -198,7 +198,42 @@ jobs:
         cargo add tokio --dev
         cargo test-sbf -- --nocapture
 
-  # Job for Cairo/StarkNet contracts
+  # Job for Stellar Soroban contracts
+  stellar:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.modified, 'ramp_stellar/') || github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32v1-none
+
+    - name: Install Stellar CLI
+      run: |
+        sudo apt update
+        sudo apt install -y libdbus-1-dev pkg-config
+        cargo install --locked stellar-cli@23.0.0
+        stellar --version
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ramp_stellar/target/
+        key: ${{ runner.os }}-stellar-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build and Test ramp_stellar
+      run: |
+        cd ramp_stellar
+        stellar contract build
+
+  # Job for StarkNet Cairo contracts
   starknet:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_stark/') || github.event_name == 'pull_request' || github.event_name == 'push'
@@ -217,7 +252,7 @@ jobs:
   # Job to run complete workflow
   complete-workflow:
     runs-on: ubuntu-latest
-    needs: [aptos, foundry, supra, solana, starknet]
+    needs: [aptos, foundry, supra, solana, stellar, starknet]
     if: always()
     steps:
     - uses: actions/checkout@v4
