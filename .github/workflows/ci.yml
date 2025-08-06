@@ -213,7 +213,7 @@ jobs:
     - name: Install Stellar CLI
       run: |
         sudo apt update
-        sudo apt install -y libdbus-1-dev pkg-config
+        sudo apt install -y libdbus-1-dev pkg-config libudev
         cargo install --locked stellar-cli@23.0.0
         stellar --version
 
@@ -240,9 +240,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: software-mansion/setup-scarb@v1
-    - uses: foundry-rs/setup-snfoundry@v3
+    - uses: foundry-rs/setup-snfoundry@v4
       with:
-        version: '0.47.0'
+        version: '0.48.0'
+    - name: Install Universal Sierra Compiler
+      run: |
+        curl -L https://raw.githubusercontent.com/software-mansion/universal-sierra-compiler/master/scripts/install.sh | sh
     - name: Build and Test ramp_stark
       run: |
         cd ramp_stark
