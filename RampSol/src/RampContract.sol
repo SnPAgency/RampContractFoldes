@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.30;
 /**
  * @title RampContract
  * @dev This contract is a placeholder for the Ramp protocol implementation.
@@ -20,15 +20,17 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @dev Errors
      */
     error Asset__AlreadyAllowed(address asset);
+    error Asset__NotPresent(address asset);
     error Asset__InvalidAddress(address asset);
     error Invalid__VaultAddress(address vault);
+    error Invalid__FeePercentage(uint256 feePercentage);
 
     /**
      * @dev State Variables
      */
 
     // Allowed Assets
-    mapping(address => bool) public allowedAssets;
+    mapping(address => bool) private _allowedAssets;
 
     // List of allowed assets
     // This is a dynamic array that holds the addresses of all allowed assets.
@@ -52,10 +54,19 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      */
 
     // Event emitted when an asset is added to the allowed assets list
-    event AssetAllowedAdded(address indexed asset);
+    event AssetAllowedAdded(
+        address indexed asset,
+        uint256 initialFeePercentage,
+        uint256 initialBalance,
+        address indexed funder
+    );
 
     // Event emitted when an asset is removed from the allowed assets list
-    event AssetAllowedRemoved(address indexed asset);
+    event AssetAllowedRemoved(
+        address indexed asset,
+        address indexed balanceRecipient,
+        uint256 balance
+    );
 
     // Event emitted when a deposit is made to the Ramp protocol
     event RampDeposit(address indexed asset, uint256 amount, address indexed sender);
@@ -103,56 +114,84 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
     /**
      * @dev Add an asset to the allowed assets list.
      * @param asset The address of the asset to be added.
+     * @param funder The address of the intiall balancefunder.
+     * @param _feePercentage The fee percentage for the asset.
      * @notice This function can only be called by the owner of the contract.
+     * @notice This function also transfers funds to the contract
+     * @notice This function emits the AssetAllowedAdded event to indicate that the asset has been added.
      */
-    function addAllowedAsset(address asset, uint256 _feePercentage) external onlyOwner {
+    function addAllowedAsset(
+        address asset,
+        address funder,
+        uint256 _feePercentage
+    ) external onlyOwner {
         // Ensure the asset address is valid and not already allowed
-
         if (asset == address(0)) {
             revert Asset__InvalidAddress(asset);
         }
 
+        // ensure the fee is valid
+        if (_feePercentage <= 0 || _feePercentage > 5) {
+            revert Invalid__FeePercentage(_feePercentage);
+        }
+
         // Check if the asset is already allowed
-        if (!allowedAssets[asset]) {
-            allowedAssets[asset] = true;
+        if (!_allowedAssets[asset]) {
+            uint256 initialBalance = IERC20(asset).allowance(funder, address(this));
+
+            // Fund the contract with the amount allowed by the funder
+            if (initialBalance > 0) {
+                IERC20(asset).transferFrom(funder, address(this), initialBalance);
+            }
+
+            _allowedAssets[asset] = true;
             assetFeePercentage[asset] = _feePercentage;
             _allowedAssetsList.push(asset);
             // Emit an event to indicate that the asset has been added
-            emit AssetAllowedAdded(asset);
+            emit AssetAllowedAdded(asset, _feePercentage, initialBalance, funder);
+        } else {
+            // If the asset is already allowed, revert the transaction
+            revert Asset__AlreadyAllowed(asset);
         }
-        // If the asset is already allowed, revert the transaction
-        revert Asset__AlreadyAllowed(asset);
     }
 
     /**
      * @dev Remove an asset from the allowed assets list.
      * @param asset The address of the asset to be removed.
+     * @param balanceRecipient The address of the recipient of the asset balance.
      * @notice This function can only be called by the owner of the contract.
+     * @notice This function transfers the balance of the asset to the balanceRecipient.
+     * @notice This function emits the AssetAllowedRemoved event to indicate that the asset has been removed.
      */
-    function removeAllowedAsset(address asset) external onlyOwner {
+    function removeAllowedAsset(address asset, address balanceRecipient) external onlyOwner {
         // Ensure the asset address is valid
         if (asset == address(0)) {
             revert Asset__InvalidAddress(asset);
         }
 
         // Check if the asset is allowed
-        if (allowedAssets[asset]) {
-            allowedAssets[asset] = false;
+        if (_allowedAssets[asset]) {
             assetFeePercentage[asset] = 0;
             // Remove the asset from the allowed assets list
             for (uint256 i = 0; i < _allowedAssetsList.length; i++) {
                 if (_allowedAssetsList[i] == asset) {
-                    allowedAssets[asset] = false;
+                    _allowedAssets[asset] = false;
                     // Move the last element to the current position and pop the last element
                     _allowedAssetsList[i] = _allowedAssetsList[_allowedAssetsList.length - 1];
                     _allowedAssetsList.pop();
                     break;
                 }
             }
-            emit AssetAllowedRemoved(asset);
+            // transfer the balance of the asset to the balanceRecipient
+            uint256 balance = IERC20(asset).balanceOf(address(this));
+            if (balance > 0) {
+                IERC20(asset).transfer(balanceRecipient, balance);
+            }
+            emit AssetAllowedRemoved(asset, balanceRecipient, balance);
+        } else {
+            // If the asset is not allowed, revert the transaction
+            revert Asset__NotPresent(asset);
         }
-        // If the asset is not allowed, revert the transaction
-        revert Asset__AlreadyAllowed(asset);
     }
 
     /**
@@ -160,10 +199,14 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @param asset The address of the asset to be deposited.
      * @param amount The amount of the asset to be deposited.
      * @param sender The address of the sender.
+     * @notice This function can only be called when the contract is not paused.
+     * @notice This function transfers the amount of the asset from the sender to the contract.
+     * @notice This function emits the RampDeposit event to indicate that the asset amount
+     * has been deposited from the user to the contract.
      */
     function onRampDeposit(address asset, uint256 amount, address sender) external whenNotPaused {
         // Placeholder for deposit logic
-        if (!allowedAssets[asset]) {
+        if (!_allowedAssets[asset]) {
             revert Asset__InvalidAddress(asset);
         }
 
@@ -179,10 +222,14 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @param asset The address of the asset to be withdrawn.
      * @param amount The amount of the asset to be withdrawn.
      * @param recipient The address of the recipient.
+     * @notice This function can only be called when the contract is not paused.
+     * @notice This function transfers the amount of the asset from the contract to the recipient.
+     * @notice This function emits the RampWithdraw event to indicate that the asset 
+     * amount has been sent to the user.
      */
     function offRampWithdraw(address asset, uint256 amount, address recipient) external whenNotPaused onlyOwner {
         // Placeholder for withdrawal logic
-        if (!allowedAssets[asset]) {
+        if (!_allowedAssets[asset]) {
             revert Asset__InvalidAddress(asset);
         }
 
@@ -197,6 +244,9 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @dev Function to withdraw Ether from the contract.
      * @param amount The amount of Ether to be withdrawn.
      * @notice This function can only be called by the owner of the contract.
+     * @notice This function transfers the amount of Ether from the contract to the vault.
+     * @notice This function emits the EthWithdrawn event to indicate that the eth balance in 
+     * the contract has been withdrawn.
      */
     function withdrawEtherRevenue(uint256 amount) external onlyOwner {
         // Placeholder for withdrawing Ether
@@ -235,7 +285,7 @@ contract RampContract is Initializable, PausableUpgradeable, OwnableUpgradeable 
      * @return bool Returns true if the asset is allowed, false otherwise.
      */
     function isAssetAllowed(address asset) external view returns (bool) {
-        return allowedAssets[asset];
+        return _allowedAssets[asset];
     }
 
     /**
