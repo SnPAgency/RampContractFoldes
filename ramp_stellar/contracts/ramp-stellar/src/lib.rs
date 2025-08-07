@@ -13,7 +13,7 @@ use errors::RampContractError;
 
 /**
  * @title RampContract
- * @dev This contract is a placeholder for the Ramp protocol implementation.
+ * @dev This contract is an implementation of the Ramp protocol.
  * It will include functions and state variables related to the Ramp protocol.
  * The Ramp protocol is designed to facilitate the exchange of assets in a decentralized manner.
  * This contract will be expanded in future iterations to include the full functionality of the Ramp protocol.

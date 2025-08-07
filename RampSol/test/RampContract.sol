@@ -2,11 +2,13 @@
 pragma solidity ^0.8.30;
 
 import {Test, console} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
+import "forge-std/Vm.sol";
 import {RampContract} from "../src/RampContract.sol";
 import {RampToken} from "../src/test_contract/TestToken.sol";
+import {IRampContract} from "../src/IRampContract.sol";
+import {Errors} from "../src/helpers/errors.sol";
 
-contract RampContractTest is Test {
+contract RampContractTestFunctionality is Test {
     RampContract public rampContract;
     RampToken public rampToken1;
     RampToken public rampToken2;
@@ -23,153 +25,177 @@ contract RampContractTest is Test {
         rampToken2 = new RampToken(controller);
         rampContract = new RampContract();
         rampContract.initialize(controller, payable(vault));
-    }
-
-    // Test pause function
-    function test_pause() public {
-        vm.startPrank(controller);
-        rampContract.pause();
-        assertEq(rampContract.paused(), true);
-        vm.stopPrank();
-    }
-
-    //Test non owner cannot pause
-    function test_non_owner_cannot_pause() public {
-        vm.startPrank(nonOwner);
-        vm.expectRevert();
-        rampContract.pause();
-        vm.stopPrank();
-    }
-
-    // Test unpause function
-    function test_unpause() public {
-        vm.startPrank(controller);
-        rampContract.pause();
-        assertEq(rampContract.paused(), true);
-        rampContract.unpause();
-        assertEq(rampContract.paused(), false);
-        vm.stopPrank();
-    }
-
-    //Test non owner cannot unpause
-    function test_non_owner_cannot_unpause() public {
-        vm.startPrank(nonOwner);
-        vm.expectRevert();
-        rampContract.unpause();
-        vm.stopPrank();
-    }
-
-    // Test add allowed asset fails when supplied with address 0
-    function test_add_allowed_asset_fails_with_address_0() public {
-        vm.startPrank(controller);
-        vm.expectRevert();
-        rampContract.addAllowedAsset(address(0), controller, 1);
-        vm.stopPrank();
-    }
-
-    // Tests adding of an allowed asset
-    function test_add_allowed_asset() public {
+        rampToken1.mint(controller, 100);
+        rampToken2.mint(controller, 100);
+        rampToken1.mint(nonOwner,10000);
+        rampToken2.mint(nonOwner,10000);
         vm.startPrank(controller);
         rampToken1.approve(address(rampContract), 100);
         rampContract.addAllowedAsset(address(rampToken1), controller, 1);
-
-        //check the asset is allowed on the contract
-        assertEq(rampContract.isAssetAllowed(address(rampToken1)), true);
-
-        //confirm the asset balance on the contract
-        assertEq(rampToken1.balanceOf(address(rampContract)), 100);
-
-        //confirm the fee percentage
-        assertEq(rampContract.assetFeePercentage(address(rampToken1)), 1);
-        
+        rampContract.setNewFeePercentage(address(0), 1);
+        vm.deal(controller, 100);
+        rampContract.fundContractWithEth{value: 99}();
         vm.stopPrank();
     }
 
-    // Test adding an asset with unallowed fee percentage range
-    function test_add_allowed_asset_fails_with_invalid_fee() public {
-        vm.startPrank(controller);
-        vm.expectRevert();
-        // add an asset with the fee as 0
-        rampContract.addAllowedAsset(address(rampToken1), controller, 0);
-        vm.stopPrank();
-    }
-
-    // Test adding an asset with unallowed fee percentage range
-    function test_add_allowed_asset_fails_with_invalid_fee_percentage() public {
-        vm.startPrank(controller);
-        vm.expectRevert();
-        // add an asset with the fee as 6
-        rampContract.addAllowedAsset(address(rampToken1), controller, 6);
-        vm.stopPrank();
-    }
-
-    //Test remove allowed asset
-    function test_remove_allowed_asset() public {
-        vm.startPrank(controller);
-
-        // approve the contract to spend some tokens
-        rampToken2.approve(address(rampContract), 100);
-        // add the asset first
-        rampContract.addAllowedAsset(address(rampToken2), controller, 1);
-
-        //check the asset is added
-        assertEq(rampContract.isAssetAllowed(address(rampToken2)), true);
-
-        // check that the contract balance matches the amount approved
-        assertEq(rampToken2.balanceOf(address(rampContract)), 100);
-
-        //remove the asset
-        rampContract.removeAllowedAsset(address(rampToken2), controller);
-        assertEq(rampContract.isAssetAllowed(address(rampToken2)), false);
-
-        // check that the contract balance is 0
-        assertEq(rampToken2.balanceOf(address(rampContract)), 0);
-
-        //confirm the fee percentage
-        assertEq(rampContract.assetFeePercentage(address(rampToken2)), 0);
-        vm.stopPrank();
-    }
-
-    //Test remove allowed asset with invalid address
-    function test_remove_allowed_asset_fails_with_invalid_address() public {
-        vm.startPrank(controller);
-
-        //expect revert
-        vm.expectRevert();
-        rampContract.removeAllowedAsset(address(0), controller);
-        vm.stopPrank();
-    }
-
-    //Test set new Vault address
-    function test_set_new_vault_address() public {
-        vm.startPrank(controller);
-        address payable newVault = payable(vm.addr(10));
-        rampContract.setNewVault(newVault);
-        assertEq(rampContract.vault(), newVault);
-        vm.stopPrank();
-    }
-
-    //Test set new Vault address with invalid address
-    function test_set_new_vault_address_with_invalid_address() public {
-        vm.startPrank(controller);
-        vm.expectRevert();
-        rampContract.setNewVault(payable(address(0)));
-        vm.stopPrank();
-    }
-
-    // Test set new Vault address with same address
-    function test_set_new_vault_address_with_same_address() public {
-        vm.startPrank(controller);
-        vm.expectRevert();
-        rampContract.setNewVault(payable(vault));
-        vm.stopPrank();
-    }
-
-    // Test non owner cannot set new vault address
-    function test_non_owner_cannot_set_new_vault_address() public {
+    function test_onramp_deposit() public {
         vm.startPrank(nonOwner);
-        vm.expectRevert();
-        rampContract.setNewVault(payable(vault));
+        uint256 balance = rampToken1.balanceOf(address(rampContract));
+        uint256 userBalance = rampToken1.balanceOf(nonOwner);
+        rampToken1.approve(address(rampContract), 100);
+
+        vm.expectEmit(true, true, false, true);
+        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
+        emit IRampContract.RampDeposit(
+            address(rampToken1),
+            nonOwner,
+            amountAfterFee,
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""
+        );
+        rampContract.onRampDeposit(
+            address(rampToken1),
+            100,
+            nonOwner,
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""
+        );
+        assertEq(rampToken1.balanceOf(address(rampContract)), balance + 100);
+        assertEq(rampToken1.balanceOf(nonOwner), userBalance - 100);
+        vm.stopPrank();
+    }
+
+    function test_onramp_native() public {
+        vm.startPrank(nonOwner);
+        uint256 balance = address(rampContract).balance;
+        vm.deal(nonOwner, 100);
+        uint256 userBalance = nonOwner.balance;
+        assertEq(userBalance, 100);
+
+        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 90);
+        vm.expectEmit(true, true, false, true);
+        emit IRampContract.RampDeposit(
+            address(address(0)),
+            nonOwner,
+            amountAfterFee,
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""
+        );
+        rampContract.onRampNative{value: 90}(
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""  
+        );
+        assertEq(address(rampContract).balance, balance + 90);
+        assertEq(nonOwner.balance, userBalance - 90);
+        vm.stopPrank();
+    }
+
+
+    function test_onramp_with_permit() public {
+        vm.startPrank(nonOwner);
+        uint256 balance = rampToken1.balanceOf(address(rampContract));
+        uint256 userBalance = rampToken1.balanceOf(nonOwner);
+
+        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
+
+        bytes32 domain_separator = rampToken1.DOMAIN_SEPARATOR();
+        bytes32 PERMIT_TYPEHASH = keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
+        bytes32 struct_hash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                nonOwner,
+                address(rampContract),
+                100,
+                rampToken1.nonces(nonOwner),
+                block.timestamp
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            domain_separator,
+            struct_hash
+        ));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(3, digest);
+
+        vm.stopPrank();
+        vm.startPrank(controller);
+        vm.expectEmit(true, true, false, true);
+        emit IRampContract.RampDeposit(
+            address(rampToken1),
+            nonOwner,
+            amountAfterFee,
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""
+        );
+        rampContract.onRampWithPermit(
+            address(rampToken1),
+            100,
+            nonOwner,
+            IRampContract.PermitParams({
+                deadline: block.timestamp,
+                v: v,
+                r: r,
+                s: s
+            }),
+            IRampContract.OnrampMedium.Primary,
+            IRampContract.Region.KEN,
+            ""
+        );
+        assertEq(rampToken1.balanceOf(address(rampContract)), balance + 100);
+        assertEq(rampToken1.balanceOf(nonOwner), userBalance - 100);
+        vm.stopPrank();
+    }
+
+
+    function test_offram_withdraw() public {
+        vm.startPrank(nonOwner);
+        uint256 balance = rampToken1.balanceOf(address(rampContract));
+        uint256 userBalance = rampToken1.balanceOf(nonOwner);
+
+        vm.stopPrank();
+        vm.startPrank(controller);
+        vm.expectEmit(true, true, false, true);
+        emit IRampContract.RampWithdraw(
+            address(rampToken1),
+            nonOwner,
+            10
+        );
+        rampContract.offRampWithdraw(
+            address(rampToken1),
+            10,
+            nonOwner
+        );
+        assertEq(rampToken1.balanceOf(address(rampContract)), balance - 10);
+        assertEq(rampToken1.balanceOf(nonOwner), userBalance + 10);
+        vm.stopPrank();
+    }
+
+    function test_offram_native() public {
+        vm.startPrank(controller);
+        uint256 balance = address(rampContract).balance;
+        uint256 userBalance = nonOwner.balance;
+
+        vm.stopPrank();
+        vm.startPrank(controller);
+        vm.expectEmit(true, true, false, true);
+        emit IRampContract.RampWithdraw(
+            address(address(0)),
+            nonOwner,
+            10
+        );
+        rampContract.offRampNative(
+            payable(nonOwner),
+            10
+        );
+        assertEq(address(rampContract).balance, balance - 10);
+        assertEq(nonOwner.balance, userBalance + 10);
         vm.stopPrank();
     }
 }
