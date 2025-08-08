@@ -140,7 +140,12 @@ contract RampContract is
             }
 
             _allowedAssets[asset] = true;
-            assetInfo[asset] = IRampContract.AssetInfo(_feePercentage, 0);
+            assetInfo[asset] = IRampContract.AssetInfo(
+                {
+                    feePercentage: _feePercentage,
+                    revenuePerAsset: 0
+                }
+            );
             _allowedAssetsList.push(asset);
             // Emit an event to indicate that the asset has been added
             emit IRampContract.AssetAllowedAdded(asset, funder, _feePercentage, initialBalance);
@@ -167,7 +172,12 @@ contract RampContract is
 
         // Check if the asset is allowed
         if (_allowedAssets[asset]) {
-            assetInfo[asset] = IRampContract.AssetInfo(0, 0);
+            assetInfo[asset] = IRampContract.AssetInfo(
+                {
+                    feePercentage: 0,
+                    revenuePerAsset: 0
+                }
+            );
             // Remove the asset from the allowed assets list
             for (uint256 i = 0; i < _allowedAssetsList.length; i++) {
                 if (_allowedAssetsList[i] == asset) {
@@ -231,7 +241,7 @@ contract RampContract is
 
             uint256 fee = Math.mulDiv(_assetInfo.feePercentage, amount, 100);
 
-            (bool addSuccess, uint256 newRevenue) = Math.tryAdd(_assetInfo.revenuePerAsset, fee);
+            (bool addSuccess, uint256 newRevenue) = fee.tryAdd(_assetInfo.revenuePerAsset);
             if (!addSuccess) {
                 revert Errors.Math__AdditionError(_assetInfo.revenuePerAsset, fee);
             }
@@ -261,14 +271,14 @@ contract RampContract is
         bytes memory data
     ) external payable whenNotPaused nonReentrant {
         // Placeholder for deposit logic
-        IRampContract.AssetInfo memory _assetInfo = assetInfo[address(0)];
+        IRampContract.AssetInfo storage _assetInfo = assetInfo[address(0)];
 
         //transfer the amount of the asset from the sender to the contract
 
         if (msg.value > 0) {
 
             (uint256 fee, uint256 amountAfterFee) = amountAfterFees(_assetInfo.feePercentage, msg.value);
-            (bool addSuccess, uint256 newRevenue) = Math.tryAdd(_assetInfo.revenuePerAsset, fee);
+            (bool addSuccess, uint256 newRevenue) = fee.tryAdd(_assetInfo.revenuePerAsset);
             if (!addSuccess) {
                 revert Errors.Math__AdditionError(_assetInfo.revenuePerAsset, fee);
             }
@@ -309,16 +319,24 @@ contract RampContract is
 
         IERC20Permit token = IERC20Permit(asset);
 
-        token.permit(sender, address(this), amount, permitParams.deadline, permitParams.v, permitParams.r, permitParams.s);
+        token.permit(
+            sender,
+            address(this),
+            amount,
+            permitParams.deadline,
+            permitParams.v,
+            permitParams.r,
+            permitParams.s
+        );
 
         // Step 2: Transfer tokens
         bool transferSuccess = IERC20(asset).transferFrom(sender, address(this), amount);
 
         if (transferSuccess) {
-            IRampContract.AssetInfo memory _assetInfo = assetInfo[asset];
+            IRampContract.AssetInfo storage _assetInfo = assetInfo[asset];
             (uint256 fee, uint256 amountAfterFee) = amountAfterFees(_assetInfo.feePercentage, amount);
 
-            (bool addSuccess, uint256 newRevenue) = Math.tryAdd(_assetInfo.revenuePerAsset, fee);
+            (bool addSuccess, uint256 newRevenue) = fee.tryAdd(_assetInfo.revenuePerAsset);
             if (!addSuccess) {
                 revert Errors.Math__AdditionError(_assetInfo.revenuePerAsset, fee);
             }
@@ -405,7 +423,9 @@ contract RampContract is
         // Placeholder for withdrawing Ether
         // This function can be used to withdraw Ether from the contract.
         // It can be used for funding the project or for other purposes.
-        require(address(this).balance >= amount, "Insufficient balance");
+        if (address(this).balance < amount) {
+            revert Errors.Invalid__EthValue(amount);
+        }
         vault.transfer(amount);
         emit IRampContract.EthWithdrawn(vault, amount);
     }
@@ -524,8 +544,12 @@ contract RampContract is
     }
 
     function amountAfterFees(uint256 feePercentage, uint256 amount) public pure returns (uint256 fee, uint256 amountAfterFee) {
-        fee = Math.mulDiv(feePercentage, amount, 100);
-        amountAfterFee = amount - fee;
+        fee = feePercentage.mulDiv(amount, 100);
+        (bool success, uint256 _amountAfterFee) = amount.trySub(fee);
+        if (!success) {
+            revert Errors.Math__SubtractionError(amount, fee);
+        }
+        amountAfterFee = _amountAfterFee;
         return (fee, amountAfterFee);
     }
 }
