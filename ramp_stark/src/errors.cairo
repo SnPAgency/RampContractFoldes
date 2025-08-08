@@ -10,4 +10,8 @@ pub mod RampErrors {
     pub const SAME_VAULT_ADDRESS: felt252 = 'Ramp: Same Vault Address';
 
     pub const SAME_FEE_AMOUNT: felt252 = 'Ramp: Same Fee Amount';
+
+    pub const INVALID_FEE_PERCENTAGE: felt252 = 'Ramp: Invalid Fee Percentage';
+
+    pub const INVALID_ASSET_BALANCE: felt252 = 'Ramp: Invalid Asset Balance';
 }
