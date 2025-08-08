@@ -45,7 +45,7 @@ contract RampContractTestFunctionality is Test {
         rampToken1.approve(address(rampContract), 100);
 
         vm.expectEmit(true, true, false, true);
-        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
+        (uint256 fee, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
         emit IRampContract.RampDeposit(
             address(rampToken1),
             nonOwner,
@@ -62,6 +62,8 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""
         );
+        uint256 newRevenue = rampContract.getAssetRevenue(address(rampToken1));
+        assertEq(newRevenue, fee);
         assertEq(rampToken1.balanceOf(address(rampContract)), balance + 100);
         assertEq(rampToken1.balanceOf(nonOwner), userBalance - 100);
         vm.stopPrank();
@@ -74,7 +76,7 @@ contract RampContractTestFunctionality is Test {
         uint256 userBalance = nonOwner.balance;
         assertEq(userBalance, 100);
 
-        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 90);
+        (uint256 fee, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 90);
         vm.expectEmit(true, true, false, true);
         emit IRampContract.RampDeposit(
             address(address(0)),
@@ -89,6 +91,9 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""  
         );
+
+        uint256 newRevenue = rampContract.getAssetRevenue(address(0));
+        assertEq(newRevenue, fee);
         assertEq(address(rampContract).balance, balance + 90);
         assertEq(nonOwner.balance, userBalance - 90);
         vm.stopPrank();
@@ -100,7 +105,7 @@ contract RampContractTestFunctionality is Test {
         uint256 balance = rampToken1.balanceOf(address(rampContract));
         uint256 userBalance = rampToken1.balanceOf(nonOwner);
 
-        (, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
+        (uint256 fee, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
 
         bytes32 domain_separator = rampToken1.DOMAIN_SEPARATOR();
         bytes32 PERMIT_TYPEHASH = keccak256(
@@ -148,6 +153,10 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""
         );
+        uint256 newRevenue = rampContract.getAssetRevenue(address(rampToken1));
+        console.log(newRevenue);
+        console.log(fee);
+        assertEq(newRevenue, fee);
         assertEq(rampToken1.balanceOf(address(rampContract)), balance + 100);
         assertEq(rampToken1.balanceOf(nonOwner), userBalance - 100);
         vm.stopPrank();
