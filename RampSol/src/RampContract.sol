@@ -431,7 +431,7 @@ contract RampContract is
     }
 
     /**
-     * @dev function withdraAssetRevenue(address asset) 
+     * @dev function withdraAssetRevenue(address) 
      * @dev withdraws asset revenue from the contract.
      * @param asset The address of the asset to be withdrawn.
      * @notice This function can only be called by the owner of the contract.
