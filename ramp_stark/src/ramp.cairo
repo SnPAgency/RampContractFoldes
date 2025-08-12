@@ -81,7 +81,7 @@ pub mod RampStark {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         PausableEvent: PausableComponent::Event,
         #[flat]
@@ -102,6 +102,10 @@ pub mod RampStark {
     pub struct AssetAllowedAdded {
         #[key]
         pub asset: ContractAddress,
+        #[key]
+        pub funder: ContractAddress,
+        pub initial_fee_percentage: u8,
+        pub initial_blalnce: u256
     }
 
     // Event emitted when an asset is removed from the allowed assets list
@@ -109,6 +113,9 @@ pub mod RampStark {
     pub struct AssetAllowedRemoved {
         #[key]
         pub asset: ContractAddress,
+        #[key]
+        pub balance_recipient: ContractAddress,
+        pub balance: u256,
     }
 
     // Event emitted when a deposit is made to the Ramp protocol
@@ -139,19 +146,19 @@ pub mod RampStark {
     #[derive(Drop, PartialEq, starknet::Event)]
     pub struct VaultChanged {
         #[key]
-        old_vault: ContractAddress,
+        pub old_vault: ContractAddress,
         #[key]
-        new_vault: ContractAddress,
+        pub new_vault: ContractAddress,
     }
 
     // event emitted when the fee to an asset gets changed
     #[derive(Drop, PartialEq, starknet::Event)]
     pub struct AssetFeeChanged {
         #[key]
-        asset: ContractAddress,
-        old_fee: u256,
+        pub asset: ContractAddress,
+        pub old_fee: u8,
         #[key]
-        new_fee: u256
+        pub new_fee: u8
     }
 
     //event emitted when an asset's revenue gets sent to the vault
@@ -233,11 +240,14 @@ pub mod RampStark {
 
             //update the asset in the tracker
             self.allowed_tokens_map.write(tracked_asset_index, asset);
-
+            self.fee_per_asset.write(asset, fee_percentage);
             self.allowed_tokens.write(asset, true);
 
             self.emit(AssetAllowedAdded {
-                asset
+                asset,
+                funder,
+                initial_fee_percentage: fee_percentage,
+                initial_blalnce: allowance
             });
 
         }
@@ -277,24 +287,26 @@ pub mod RampStark {
                 }
             }
             self.emit(AssetAllowedRemoved {
-                asset
+                asset: asset,
+                balance_recipient: token_receiver,
+                balance: balance
             });
 
         }
-    /// 
-    /// @dev function on_ramp_deposit(ContractAddress, uint256, address, OnrampMedium, Region, bytes)
-    /// @dev Deposit function for the Ramp protocol.
-    /// @param asset The address of the asset to be deposited.
-    /// @param amount The amount of the asset to be deposited.
-    /// @param sender The address of the sender.
-    /// @param medium The medium of the deposit.
-    /// @param region The region of the deposit.
-    /// @param data The data of the deposit.
-    /// @notice This function can only be called when the contract is not paused.
-    /// @notice This function transfers the amount of the asset from the sender to the contract.
-    /// @notice This function emits the RampDeposit event to indicate that the asset amount
-    /// has been deposited from the user to the contract.
-    /// 
+        /// 
+        /// @dev function on_ramp_deposit(ContractAddress, uint256, address, OnrampMedium, Region, bytes)
+        /// @dev Deposit function for the Ramp protocol.
+        /// @param asset The address of the asset to be deposited.
+        /// @param amount The amount of the asset to be deposited.
+        /// @param sender The address of the sender.
+        /// @param medium The medium of the deposit.
+        /// @param region The region of the deposit.
+        /// @param data The data of the deposit.
+        /// @notice This function can only be called when the contract is not paused.
+        /// @notice This function transfers the amount of the asset from the sender to the contract.
+        /// @notice This function emits the RampDeposit event to indicate that the asset amount
+        /// has been deposited from the user to the contract.
+        /// 
         fn on_ramp_deposit(
             ref self: ContractState,
             asset: ContractAddress,
@@ -416,6 +428,7 @@ pub mod RampStark {
         fn get_asset_revenue(self: @ContractState, asset: ContractAddress) -> u256 {
             self.project_revenue_per_asset.read(asset)
         }
+    
         /// 
         /// @dev function get_asset_fee_percentage(ContractAddress) 
         /// @dev gets the fee percentage of an asset.
@@ -461,7 +474,6 @@ pub mod RampStark {
             assets_array
         }
 
-
         ///
         /// @dev function set_new_vault(ContractAddress) 
         /// @dev sets a new vault address.
@@ -483,6 +495,7 @@ pub mod RampStark {
                 }
             );
         }
+
         /// 
         /// @dev function set_fee(ContractAddress, u256)
         /// @dev sets a new fee percentage for an asset.
@@ -490,14 +503,18 @@ pub mod RampStark {
         /// @param fee The new fee percentage.
         /// @notice This function can only be called by the owner of the contract.
         /// 
-        fn set_fee(ref self: ContractState, asset: ContractAddress, fee: u256) {
+        fn set_fee(ref self: ContractState, asset: ContractAddress, fee: u8) {
             self.ownable.assert_only_owner();
-            let old_fee = self.project_revenue_per_asset.read(asset);
+            let old_fee = self.fee_per_asset.read(asset);
+            assert(
+                self.allowed_tokens.read(asset),
+                RampErrors::INVALID_ASSET
+            );
             assert(
                 old_fee != fee,
                 RampErrors::SAME_FEE_AMOUNT
             );
-            self.project_revenue_per_asset.write(asset, fee);
+            self.fee_per_asset.write(asset, fee);
 
             self.emit(
                 AssetFeeChanged {
@@ -509,10 +526,10 @@ pub mod RampStark {
         }
 
     }
+
     //
     // Upgradeable
     //
-    
     #[abi(embed_v0)]
     impl UpgradeableImpl of IUpgradeable<ContractState> {
         fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {

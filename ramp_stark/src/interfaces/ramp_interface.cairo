@@ -47,7 +47,7 @@ pub trait IRampStack<TContractState> {
 
     fn set_new_vault(ref self: TContractState, vault: ContractAddress);
 
-    fn set_fee(ref self: TContractState, asset: ContractAddress, fee: u256);
+    fn set_fee(ref self: TContractState, asset: ContractAddress, fee: u8);
 
     fn withdraw_asset_revenue(ref self: TContractState, asset: ContractAddress);
 
