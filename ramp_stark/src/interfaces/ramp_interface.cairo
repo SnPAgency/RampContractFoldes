@@ -31,7 +31,7 @@ pub trait IRampStack<TContractState> {
         sender: ContractAddress,
         medium: OnrampMedium,
         region: Region,
-        data: felt252
+        data: ByteArray
     );
 
     fn off_ramp_withdraw(
