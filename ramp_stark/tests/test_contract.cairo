@@ -9,7 +9,7 @@ use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTr
 //use openzeppelin::upgrades::interface::{IUpgradeableDispatcher, IUpgradeableDispatcherTrait};
 
 
-fn OWNNER() -> ContractAddress {
+fn OWNER() -> ContractAddress {
     'OWNER'.try_into().unwrap()
 }
 
@@ -31,10 +31,10 @@ fn NEW_VAULT() -> ContractAddress {
 }
 
 
-fn deploy_contract(name: ByteArray) -> ContractAddress {
+fn deploy_contract() -> ContractAddress {
     let contract = declare("RampStark").unwrap().contract_class();
 
-    let owner = OWNNER();
+    let owner = OWNER();
 
     let mut calldata: Array::<felt252> = ArrayTrait::new();
 
@@ -47,8 +47,8 @@ fn deploy_contract(name: ByteArray) -> ContractAddress {
     contract_address
 }
 
-fn deploy_token(name: ByteArray) -> ContractAddress {
-    let contract = declare(name).unwrap().contract_class();
+fn deploy_token() -> ContractAddress {
+    let contract = declare("RampToken").unwrap().contract_class();
 
     let owner = NEW_OWNER();
 
@@ -66,18 +66,18 @@ fn deploy_token(name: ByteArray) -> ContractAddress {
 
 #[test]
 fn test_check_owner() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
     let dispatcher = IOwnableDispatcher { contract_address };
 
     let owner_before = dispatcher.owner();
 
-    assert(owner_before == OWNNER(), 'Invalid Owner');
+    assert(owner_before == OWNER(), 'Invalid Owner');
 }
 
 #[test]
 fn test_change_owner() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
     let dispatcher = IOwnableDispatcher { contract_address };
 
@@ -95,11 +95,11 @@ fn test_change_owner() {
 
 #[test]
 fn test_pause() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
     let dispatcher = IPausableDispatcher { contract_address };
 
-    start_cheat_caller_address(contract_address, OWNNER());
+    start_cheat_caller_address(contract_address, OWNER());
 
     assert(!dispatcher.is_paused(), 'Contract Paused');
     stop_cheat_caller_address(contract_address);
@@ -110,9 +110,9 @@ fn test_pause() {
 // Test addition of an asset
 #[test]
 fn test_add_asset() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
-    let token_address = deploy_token("RampToken");
+    let token_address = deploy_token();
 
     let dispatcher = IRampStackDispatcher { contract_address };
 
@@ -130,7 +130,7 @@ fn test_add_asset() {
     assert(amount == allowance, 'Allawance Mismatch');
     stop_cheat_caller_address(token_address);
 
-    start_cheat_caller_address(contract_address, OWNNER());
+    start_cheat_caller_address(contract_address, OWNER());
 
     let contract_balance_before = token_dispatcher.balance_of(contract_address);
 
@@ -164,9 +164,9 @@ fn test_add_asset() {
 // Test removal of an asset
 #[test]
 fn test_remove_allowed_asset() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
-    let token_address = deploy_token("RampToken");
+    let token_address = deploy_token();
 
     let dispatcher = IRampStackDispatcher { contract_address };
 
@@ -182,7 +182,7 @@ fn test_remove_allowed_asset() {
 
     stop_cheat_caller_address(token_address);
 
-    start_cheat_caller_address(contract_address, OWNNER());
+    start_cheat_caller_address(contract_address, OWNER());
 
     dispatcher.add_allowed_asset(token_address, NEW_OWNER(), 2);
 
@@ -216,12 +216,108 @@ fn test_remove_allowed_asset() {
 }
 
 #[test]
-fn test_set_new_vault() {
-    let contract_address = deploy_contract("RampStark");
+#[should_panic(expected: 'Ramp: Invalid Asset')]
+fn test_remove_allowed_asset_wrong_token() {
+    let contract_address = deploy_contract();
 
     let dispatcher = IRampStackDispatcher { contract_address };
 
-    start_cheat_caller_address(contract_address, OWNNER());
+    start_cheat_caller_address(contract_address, OWNER());
+    dispatcher.remove_allowed_asset(NEW_OWNER(), VAULT());
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Caller is not the owner')]
+fn test_remove_allowed_asset_wrong_owner() {
+    let contract_address = deploy_contract();
+
+    let token_address = deploy_token();
+    let dispatcher = IRampStackDispatcher { contract_address };
+    
+    start_cheat_caller_address(contract_address, OWNER());
+    dispatcher.add_allowed_asset(token_address, OWNER(), 1);
+    stop_cheat_caller_address(contract_address);
+
+    start_cheat_caller_address(contract_address, NEW_OWNER());
+    dispatcher.remove_allowed_asset(token_address, VAULT());
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Caller is not the owner')]
+fn test_add_allowed_asset_invalid_owner() {
+    let contract_address = deploy_contract();
+    let token_address = deploy_token();
+    let dispatcher = IRampStackDispatcher { contract_address };
+    let token_dispatcher = IERC20Dispatcher {
+        contract_address: token_address
+    };
+    start_cheat_caller_address(token_address, OWNER());
+    let amount = 1000;
+
+    token_dispatcher.approve(contract_address, amount);
+
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract_address, NEW_OWNER());
+    dispatcher.add_allowed_asset(token_address, OWNER(), 1);
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Ramp: Invalid Fee Percentage')]
+fn test_add_allowed_asset_invalid_fee() {
+    let contract_address = deploy_contract();
+    let token_address = deploy_token();
+    let dispatcher = IRampStackDispatcher { contract_address };
+    let token_dispatcher = IERC20Dispatcher {
+        contract_address: token_address
+    };
+    start_cheat_caller_address(token_address, OWNER());
+    let amount = 1000;
+
+    token_dispatcher.approve(contract_address, amount);
+
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract_address, OWNER());
+    dispatcher.add_allowed_asset(token_address, OWNER(), 101);
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Ramp: Asset Already Added')]
+fn test_add_allowed_asset_existing_asset() {
+    let contract_address = deploy_contract();
+    let token_address = deploy_token();
+    let dispatcher = IRampStackDispatcher { contract_address };
+    let token_dispatcher = IERC20Dispatcher {
+        contract_address: token_address
+    };
+    start_cheat_caller_address(token_address, NEW_OWNER());
+    let amount = 1000;
+
+    token_dispatcher.approve(contract_address, amount);
+
+    stop_cheat_caller_address(token_address);
+    
+    start_cheat_caller_address(contract_address, OWNER());
+    dispatcher.add_allowed_asset(token_address, NEW_OWNER(), 1);
+    stop_cheat_caller_address(contract_address);
+    
+    start_cheat_caller_address(contract_address, OWNER());
+    dispatcher.add_allowed_asset(token_address, OWNER(), 1);
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+fn test_set_new_vault() {
+    let contract_address = deploy_contract();
+
+    let dispatcher = IRampStackDispatcher { contract_address };
+
+    start_cheat_caller_address(contract_address, OWNER());
     let mut spy = spy_events();
     
     dispatcher.set_new_vault(NEW_VAULT());
@@ -245,9 +341,9 @@ fn test_set_new_vault() {
 
 #[test]
 fn test_set_fee() {
-    let contract_address = deploy_contract("RampStark");
+    let contract_address = deploy_contract();
 
-    let token_address = deploy_token("RampToken");
+    let token_address = deploy_token();
 
     let dispatcher = IRampStackDispatcher { contract_address };
 
@@ -262,7 +358,7 @@ fn test_set_fee() {
 
     stop_cheat_caller_address(token_address);
 
-    start_cheat_caller_address(contract_address, OWNNER());
+    start_cheat_caller_address(contract_address, OWNER());
 
     dispatcher.add_allowed_asset(token_address, NEW_OWNER(), 2);
 

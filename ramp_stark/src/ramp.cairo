@@ -122,24 +122,23 @@ pub mod RampStark {
     #[derive(Drop, PartialEq, starknet::Event)]
     pub struct RampDeposit {
         #[key]
-        asset: ContractAddress,
-        amount: u256,
+        pub asset: ContractAddress,
+        pub amount: u256,
         #[key]
-        sender: ContractAddress,
-        medium: OnrampMedium,
-        region: Region,
-        data: felt252
-
+        pub sender: ContractAddress,
+        pub medium: OnrampMedium,
+        pub region: Region,
+        pub data: ByteArray
     }
 
     // Event emitted when a withdrawal is made from the Ramp protocol
     #[derive(Drop, PartialEq, starknet::Event)]
     pub struct RampWithdraw {
         #[key]
-        asset: ContractAddress,
-        amount: u256,
+        pub asset: ContractAddress,
+        pub amount: u256,
         #[key]
-        recipient: ContractAddress,
+        pub recipient: ContractAddress,
     }
 
     // Event emitted when the vault address is changed
@@ -314,7 +313,7 @@ pub mod RampStark {
             sender: ContractAddress,
             medium: OnrampMedium,
             region: Region,
-            data: felt252
+            data: ByteArray
         ) {
             assert(self.is_asset_allowed(asset), RampErrors::INVALID_ASSET);
 
