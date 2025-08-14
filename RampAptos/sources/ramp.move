@@ -4,13 +4,16 @@ module RampAptos::ramp {
     use aptos_std::simple_map;
     use aptos_framework::object::{Self, Object, ExtendRef};
     use aptos_framework::event;
-    use aptos_framework::fungible_asset::{Self, Metadata, FungibleStore};
-    use aptos_framework::primary_fungible_store::{ensure_primary_store_exists, deposit};
-    use aptos_framework::option;
-    use std::string;
+    use aptos_framework::fungible_asset::{
+        Self,
+        Metadata,
+        FungibleStore,
+    };
+    use aptos_framework::primary_fungible_store::{ensure_primary_store_exists, deposit, balance, withdraw, transfer};
 
     #[test_only]
     use std::debug;
+    use aptos_framework::fungible_asset::{MintRef, TransferRef, MutateMetadataRef, BurnRef};
 
     /// Errors
     /// These are used to handle errors in the contract.
@@ -130,9 +133,7 @@ module RampAptos::ramp {
         move_to(global_signer, GlobalStorage {
             is_active: true,
             owner: admin,
-            //allowed_assets: simple_map::new<Object<Metadata>, bool>(),
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
-            //project_revenue_per_asset: simple_map::new<Object<Metadata>, u64>()
         });
     }
 
@@ -155,22 +156,26 @@ module RampAptos::ramp {
     //  - Emits an AssetAddedEvent when the asset is added
     //  - This function acquires the GlobalStorage resource
 
-    public entry fun add_asset(owner: &signer, asset: Object<Metadata>, fee: u64) acquires GlobalStorage {
-        let owner_addr = get_obj_address();
+    public entry fun add_asset(owner: &signer, asset: Object<Metadata>, fee: u64, initial_amount: u64) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
         // Ensure the global storage object exists
-        assert!(exists<GlobalStorage>(owner_addr), error::not_found(ENO_CONTRACT_STATE));
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
         // Ensure the owner is the one who is trying to add the asset
         assert!(
-            borrow_global<GlobalStorage>(owner_addr).owner == signer::address_of(owner),
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
             error::permission_denied(ENOT_OWNER)
         );
 
-        let global_storage = borrow_global_mut<GlobalStorage>(owner_addr);
+        //let owner_store = ensure_primary_store_exists(signer::address_of(owner), asset);//aptos_framework::primary_fungible_store::primary_store(signer::address_of(owner), asset);
 
-        let store_constructor_ref = &object::create_object(owner_addr);
+        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+
+        let store_constructor_ref = &object::create_object(obj_addr);
 
         let fa_store = fungible_asset::create_store(store_constructor_ref, asset);
 
+        //fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
+        
         simple_map::upsert(
             &mut global_storage.vault_address,
             asset,
@@ -294,6 +299,18 @@ module RampAptos::ramp {
     /// Deposit a fungible asset into the asset's vault
     public entry fun on_ramp_deposit(user: &signer, asset: Object<Metadata>, amount: u64) acquires GlobalStorage {
         let obj_address = get_obj_address();
+
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_CONTRACT_STATE));
+
+        // get global storage reference
+        let global_storage_ref = borrow_global_mut<GlobalStorage>(obj_address);
+
+        // assert the asset is listed
+        assert!(
+            simple_map::contains_key(&global_storage_ref.vault_address, &asset),
+            error::invalid_state(EASSET_NOT_ALLOWED)
+        );
         let user_store = ensure_primary_store_exists(signer::address_of(user), asset);
 
         let fungible_asset = fungible_asset::withdraw(
@@ -302,24 +319,17 @@ module RampAptos::ramp {
             amount
         );
 
-        // Ensure the global storage object exists
-        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_CONTRACT_STATE));
-
-        // get global storage reference
-        let global_storage_ref = borrow_global<GlobalStorage>(obj_address);
-
-        // assert the asset is listed
-        assert!(
-            simple_map::contains_key(&global_storage_ref.vault_address, &asset),
-            error::invalid_state(EASSET_NOT_ALLOWED)
-        );
         // get the asset vault
-        let asset_vault = simple_map::borrow(&global_storage_ref.vault_address, &asset);
+        let asset_vault = simple_map::borrow_mut(&mut global_storage_ref.vault_address, &asset);
 
         let amount = fungible_asset::amount(&fungible_asset);
         // deposit the fa to the store
         fungible_asset::deposit(asset_vault.store, fungible_asset);
 
+        let fee = asset_vault.asset_fee_percentage;
+        let fee_amount = amount * fee / 100;
+
+        asset_vault.asset_revenue = asset_vault.asset_revenue + fee_amount;
         // emit the depist event
         event::emit(RampDeposit {
             asset: asset,
@@ -458,78 +468,106 @@ module RampAptos::ramp {
 
     }
 
+    #[view]
+    public fun get_fee(asset: Object<Metadata>): u64 acquires GlobalStorage {
+        let obj_address = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_ASSET));
+        // Check if the asset is in the allowed assets simple_map
+        simple_map::borrow(&borrow_global<GlobalStorage>(obj_address).vault_address, &asset).asset_fee_percentage
+    }
 
-    #[test_only(owner = @RampAptos, admin = @0x2)]
-    public entry fun initialize_test(owner: signer, admin: address) {
+    #[test_only]
+    struct TestInfo has drop {
+        metadata: Object<Metadata>,
+        mint_ref: MintRef,
+        transfer_ref: TransferRef,
+        burn_ref: BurnRef,
+        mut_metadata_ref: MutateMetadataRef,
+        owner: signer,
+        admin: signer,
+        user_one: signer
+    }
+
+    #[test_only(owner = @RampAptos, admin = @0xface, user_one = @0xCafe)]
+    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo {
         let msg: std::string::String = std::string::utf8(b"Running test for initialize...");
-        debug::print(&msg);
+        std::debug::print(&msg);
+        aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, admin);
+
+        let (
+            mint_ref, 
+            transfer_ref, 
+            burn_ref, 
+            metadata_ref,
+            metadata
+        ) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
+
+        let admin_signer = aptos_framework::account::create_account_for_test(admin);
+        let user_one_signer = aptos_framework::account::create_account_for_test(user_one);
+        let admin_store = aptos_framework::fungible_asset::create_test_store(&admin_signer, metadata);
+        let user_store = aptos_framework::fungible_asset::create_test_store(&user_one_signer, metadata);
+        let fa =    aptos_framework::fungible_asset::mint(&mint_ref, 100);
+
+        aptos_framework::fungible_asset::deposit(admin_store, fa);
+
+        assert!(
+            fungible_asset::balance(admin_store) == 100,
+            error::invalid_argument(1)
+        );
+
+        //assert!(aptos_framework::fungible_asset::store_exists(admin), error::invalid_argument(2));
+        TestInfo {
+            metadata: metadata,
+            mint_ref: mint_ref,
+            transfer_ref: transfer_ref,
+            burn_ref: burn_ref,
+            mut_metadata_ref: metadata_ref,
+            owner: owner,
+            admin: admin_signer,
+            user_one: user_one_signer
+        }
     }
 
-    #[test(owner = @RampAptos, admin= @0x2)]
-    public entry fun test_add_asset(owner: signer, admin: signer) acquires GlobalStorage {
+    #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
+    fun test_add_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for add_asset...");
-        debug::print(&msg);
+        std::debug::print(&msg);
 
-        aptos_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, signer::address_of(&admin));
-
-        // Create a test fungible asset using the proper pattern
-        let constructor_ref = &object::create_named_object(&owner, b"TEST_ASSET");
-        aptos_framework::primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            constructor_ref,
-            aptos_framework::option::none(),
-            std::string::utf8(b"Test Asset"),
-            std::string::utf8(b"TEST"),
-            8,
-            std::string::utf8(b"http://example.com/favicon.ico"),
-            std::string::utf8(b"http://example.com"),
-        );
-        let metadata = object::object_from_constructor_ref<fungible_asset::Metadata>(constructor_ref);
-        add_asset(&admin, metadata, 1u64);
+        let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = balance(admin, test_info.metadata);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
         assert!(event::was_event_emitted(
-            &AssetAddedEvent { asset_address: metadata }
+            &AssetAddedEvent { asset_address: test_info.metadata }
         ), 4);
-        assert!(is_asset_allowed(metadata), 1);
+        assert!(is_asset_allowed(test_info.metadata), 1);
     }
 
-    #[test(owner = @RampAptos, admin= @0x2)]
-    public entry fun test_remove_asset(owner: signer, admin: signer) acquires GlobalStorage {
+    #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
+    fun test_remove_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for remove_asset...");
-        debug::print(&msg);
+        std::debug::print(&msg);
 
-        aptos_framework::account::create_account_for_test(signer::address_of(&owner));
-        aptos_framework::account::create_account_for_test(signer::address_of(&admin));
+        let test_info = initialize_test(owner, admin, user_one);
 
-        initialize(&owner, signer::address_of(&admin));
-        // Create a test fungible asset using the proper pattern
-        let constructor_ref = &object::create_named_object(&owner, b"TEST_ASSET");
-        aptos_framework::primary_fungible_store::create_primary_store_enabled_fungible_asset(
-            constructor_ref,
-            aptos_framework::option::none(),
-            std::string::utf8(b"Test Asset"),
-            std::string::utf8(b"TEST"),
-            8,
-            std::string::utf8(b"http://example.com/favicon.ico"),
-            std::string::utf8(b"http://example.com"),
-        );
-        let metadata = object::object_from_constructor_ref<fungible_asset::Metadata>(constructor_ref);
+        let initial_amount = balance(admin, test_info.metadata);
 
-        add_asset(&admin, metadata, 1u64);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
-        remove_asset(&admin, metadata, signer::address_of(&admin));
+        remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.admin));
 
         assert!(event::was_event_emitted(
-            &AssetRemovedEvent { asset_address: metadata }
+            &AssetRemovedEvent { asset_address: test_info.metadata }
         ), 4);
-        assert!(!is_asset_allowed(metadata), 5);
+        assert!(!is_asset_allowed(test_info.metadata), 5);
     }
 
     #[test(owner = @RampAptos, admin= @0x2)]
-    public entry fun test_set_contract_state(owner: signer, admin: signer) acquires GlobalStorage {
+    fun test_set_contract_state(owner: signer, admin: signer) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for set_contract_state...");
-        debug::print(&msg);
+        std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));
         set_contract_state(&admin, false);
@@ -541,9 +579,9 @@ module RampAptos::ramp {
 
 
     #[test(owner = @RampAptos, admin= @0x2, new_owner = @0x4)]
-    public entry fun test_set_owner(owner: signer, admin: signer, new_owner: address) acquires GlobalStorage {
+    fun test_set_owner(owner: signer, admin: signer, new_owner: address) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for set_owner...");
-        debug::print(&msg);
+        std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, signer::address_of(&admin));
         set_owner(&admin, new_owner);
@@ -551,5 +589,30 @@ module RampAptos::ramp {
         assert!(event::was_event_emitted(
             &OwnerChangedEvent { new_owner }
         ), 2);
+    }
+
+    #[test(owner = @RampAptos, admin= @0x2, user_1 = @0xCAFE)]
+    fun test_set_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for set_fee...");
+        std::debug::print(&msg);
+        let test_info = initialize_test(owner, admin, user_1);
+        let initial_amount = balance(admin, test_info.metadata);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+        set_fee(&test_info.admin, test_info.metadata, 2u64);
+        assert!(get_fee(test_info.metadata) == 2u64, 1);
+        assert!(event::was_event_emitted(
+            &AssetFeeChanged { asset: test_info.metadata, new_fee: 2u64 }
+        ), 2);
+    }
+
+    #[test(owner = @RampAptos, admin= @0x2, user_1 = @0xCAFE)]
+    fun test_get_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for get_fee...");
+        std::debug::print(&msg);
+        let test_info = initialize_test(owner, admin, user_1);
+        let initial_amount = balance(admin, test_info.metadata);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+        set_fee(&test_info.admin, test_info.metadata, 2u64);
+        assert!(get_fee(test_info.metadata) == 2u64, 1);
     }
 }

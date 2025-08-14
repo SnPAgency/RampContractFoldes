@@ -133,9 +133,7 @@ module RampSup::ramp {
         move_to(global_signer, GlobalStorage {
             is_active: true,
             owner: admin,
-            //allowed_assets: simple_map::new<Object<Metadata>, bool>(),
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
-            //project_revenue_per_asset: simple_map::new<Object<Metadata>, u64>()
         });
     }
 
@@ -459,6 +457,15 @@ module RampSup::ramp {
 
         simple_map::keys(&global_storage.vault_address)
 
+    }
+
+    #[view]
+    public fun get_fee(asset: Object<Metadata>): u64 acquires GlobalStorage {
+        let obj_address = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_ASSET));
+        // Check if the asset is in the allowed assets simple_map
+        simple_map::borrow(&borrow_global<GlobalStorage>(obj_address).vault_address, &asset).asset_fee_percentage
     }
 
     #[test_only]
