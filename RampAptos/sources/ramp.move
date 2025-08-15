@@ -9,11 +9,7 @@ module RampAptos::ramp {
         Metadata,
         FungibleStore,
     };
-    use aptos_framework::primary_fungible_store::{ensure_primary_store_exists, deposit, balance, withdraw, transfer};
-
-    #[test_only]
-    use std::debug;
-    use aptos_framework::fungible_asset::{MintRef, TransferRef, MutateMetadataRef, BurnRef};
+    use aptos_framework::primary_fungible_store::{ensure_primary_store_exists, deposit};
 
     /// Errors
     /// These are used to handle errors in the contract.
@@ -73,12 +69,16 @@ module RampAptos::ramp {
     /// Event emitted when an asset is added
     struct AssetAddedEvent has store, drop {
         asset_address: Object<Metadata>,
+        fee_percentage: u64,
+        initial_amount: u64
     }
 
     #[event]
     /// Event emitted when an asset is removed
     struct AssetRemovedEvent has store, drop {
         asset_address: Object<Metadata>,
+        balance: u64,
+        receiver: address
     }
 
     #[event]
@@ -166,7 +166,7 @@ module RampAptos::ramp {
             error::permission_denied(ENOT_OWNER)
         );
 
-        //let owner_store = ensure_primary_store_exists(signer::address_of(owner), asset);//aptos_framework::primary_fungible_store::primary_store(signer::address_of(owner), asset);
+        let owner_store = ensure_primary_store_exists(signer::address_of(owner), asset);//aptos_framework::primary_fungible_store::primary_store(signer::address_of(owner), asset);
 
         let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
 
@@ -174,7 +174,7 @@ module RampAptos::ramp {
 
         let fa_store = fungible_asset::create_store(store_constructor_ref, asset);
 
-        //fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
+        fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
         
         simple_map::upsert(
             &mut global_storage.vault_address,
@@ -187,7 +187,13 @@ module RampAptos::ramp {
             }
         );
     
-        event::emit(AssetAddedEvent { asset_address: asset });
+        event::emit(
+            AssetAddedEvent {
+                asset_address: asset,
+                fee_percentage: fee,
+                initial_amount: initial_amount
+            }
+        );
     }
 
     // function: remove_asset
@@ -236,7 +242,11 @@ module RampAptos::ramp {
         };
         // Remove the asset from the allowed assets simple_map
         simple_map::remove(&mut borrow_global_mut<GlobalStorage>(obj_addr).vault_address, &asset);
-        event::emit(AssetRemovedEvent { asset_address: asset });
+        event::emit(AssetRemovedEvent {
+            asset_address: asset,
+            balance: balance,
+            receiver: asset_recipient
+        });
     }
 
     // function: set_contract_state
@@ -333,7 +343,7 @@ module RampAptos::ramp {
         // emit the depist event
         event::emit(RampDeposit {
             asset: asset,
-            amount: amount,
+            amount: amount - fee_amount,
             sender: signer::address_of(user)
         });
     }
@@ -477,13 +487,16 @@ module RampAptos::ramp {
         simple_map::borrow(&borrow_global<GlobalStorage>(obj_address).vault_address, &asset).asset_fee_percentage
     }
 
+
+    #[test_only]
+    use std::option;
+    use std::string;
+    use aptos_framework::primary_fungible_store::{Self, balance};
+    use aptos_framework::fungible_asset::MintRef;
     #[test_only]
     struct TestInfo has drop {
         metadata: Object<Metadata>,
         mint_ref: MintRef,
-        transfer_ref: TransferRef,
-        burn_ref: BurnRef,
-        mut_metadata_ref: MutateMetadataRef,
         owner: signer,
         admin: signer,
         user_one: signer
@@ -496,34 +509,40 @@ module RampAptos::ramp {
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, admin);
 
-        let (
-            mint_ref, 
-            transfer_ref, 
-            burn_ref, 
-            metadata_ref,
-            metadata
-        ) = aptos_framework::fungible_asset::create_fungible_asset(&owner);
-
+        let token_metadata = &object::create_named_object(&owner, b"test");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            token_metadata,
+            option::none(),
+            string::utf8(b"test"),
+            string::utf8(b"test"),
+            8,
+            string::utf8(b""),
+            string::utf8(b""),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(token_metadata);
+        let fa = fungible_asset::mint(&mint_ref, 1000);
+        //let user_fa = fungible_asset::mint(&mint_ref, 1000);
+        let metadata = fungible_asset::metadata_from_asset(&fa);
+//
         let admin_signer = aptos_framework::account::create_account_for_test(admin);
         let user_one_signer = aptos_framework::account::create_account_for_test(user_one);
-        let admin_store = aptos_framework::fungible_asset::create_test_store(&admin_signer, metadata);
-        let user_store = aptos_framework::fungible_asset::create_test_store(&user_one_signer, metadata);
-        let fa =    aptos_framework::fungible_asset::mint(&mint_ref, 100);
-
+        let admin_store = ensure_primary_store_exists(signer::address_of(&admin_signer), metadata);
+        //let user_store = aptos_framework::fungible_asset::create_test_store(&user_one_signer, metadata);
         aptos_framework::fungible_asset::deposit(admin_store, fa);
-
+        //aptos_framework::fungible_asset::deposit(user_store, user_fa);
+//
         assert!(
-            fungible_asset::balance(admin_store) == 100,
+            fungible_asset::balance(admin_store) == 1000,
             error::invalid_argument(1)
         );
+        //assert!(
+        //    fungible_asset::balance(user_store) == 1000,
+        //    error::invalid_argument(2)
+        //);
 
-        //assert!(aptos_framework::fungible_asset::store_exists(admin), error::invalid_argument(2));
         TestInfo {
             metadata: metadata,
             mint_ref: mint_ref,
-            transfer_ref: transfer_ref,
-            burn_ref: burn_ref,
-            mut_metadata_ref: metadata_ref,
             owner: owner,
             admin: admin_signer,
             user_one: user_one_signer
@@ -536,11 +555,27 @@ module RampAptos::ramp {
         std::debug::print(&msg);
 
         let test_info = initialize_test(owner, admin, user_one);
-        let initial_amount = balance(admin, test_info.metadata);
-        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+        let initial_amount = 100u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        aptos_framework::fungible_asset::deposit(admin_store, fa);
+        aptos_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(
+            &test_info.admin, test_info.metadata, 1u64, initial_amount
+        );
 
         assert!(event::was_event_emitted(
-            &AssetAddedEvent { asset_address: test_info.metadata }
+            &AssetAddedEvent {
+                asset_address: test_info.metadata,
+                fee_percentage: 1u64,
+                initial_amount: initial_amount
+            }
         ), 4);
         assert!(is_asset_allowed(test_info.metadata), 1);
     }
@@ -551,15 +586,27 @@ module RampAptos::ramp {
         std::debug::print(&msg);
 
         let test_info = initialize_test(owner, admin, user_one);
-
-        let initial_amount = balance(admin, test_info.metadata);
-
+        let initial_amount = 100u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        aptos_framework::fungible_asset::deposit(admin_store, fa);
+        aptos_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
-        remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.admin));
+        remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one));
 
         assert!(event::was_event_emitted(
-            &AssetRemovedEvent { asset_address: test_info.metadata }
+            &AssetRemovedEvent {
+                asset_address: test_info.metadata,
+                balance: initial_amount,
+                receiver: signer::address_of(&test_info.user_one)
+            }
         ), 4);
         assert!(!is_asset_allowed(test_info.metadata), 5);
     }
@@ -614,5 +661,68 @@ module RampAptos::ramp {
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);
+    }
+
+    #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
+    fun test_on_ramp_deposit(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for on_ramp_deposit...");
+        std::debug::print(&msg);
+
+        let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = 1000u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        aptos_framework::fungible_asset::deposit(admin_store, fa);
+        aptos_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+
+        on_ramp_deposit(&test_info.user_one, test_info.metadata, 100u64);
+
+        let fee = get_fee(test_info.metadata);
+        let fee_amount = 100u64 * fee / 100;
+        assert!(event::was_event_emitted(
+            &RampDeposit {
+                asset: test_info.metadata,
+                amount: 100u64 - fee_amount,
+                sender: signer::address_of(&test_info.user_one)
+            }
+        ), 4);
+    }
+
+
+    #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
+    fun test_off_ramp_withdraw(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for off_ramp_withdraw...");
+        std::debug::print(&msg);
+
+        let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = 1000u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        aptos_framework::fungible_asset::deposit(admin_store, fa);
+        aptos_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+
+        off_ramp_withdraw(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one), 100u64);
+
+        assert!(event::was_event_emitted(
+            &RampWithdraw {
+                asset: test_info.metadata,
+                amount: 100u64,
+                recipient: signer::address_of(&test_info.user_one)
+            }
+        ), 4);
     }
 }
