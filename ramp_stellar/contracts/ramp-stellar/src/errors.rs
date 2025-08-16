@@ -22,4 +22,7 @@ pub enum RampContractError {
     //Indicates the vault address is invalid
     InvalidVaultAddress = 5,
 
+    //Indicates the vault address is not found
+    VaultAddressNotFound = 6,
+
 }
