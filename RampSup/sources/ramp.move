@@ -8,10 +8,6 @@ module RampSup::ramp {
         Self,
         Metadata,
         FungibleStore,
-        MintRef,
-        TransferRef,
-        MutateMetadataRef,
-        BurnRef
     };
     use supra_framework::primary_fungible_store::{ensure_primary_store_exists, deposit};
 
@@ -73,12 +69,16 @@ module RampSup::ramp {
     /// Event emitted when an asset is added
     struct AssetAddedEvent has store, drop {
         asset_address: Object<Metadata>,
+        fee_percentage: u64,
+        initial_amount: u64
     }
 
     #[event]
     /// Event emitted when an asset is removed
     struct AssetRemovedEvent has store, drop {
         asset_address: Object<Metadata>,
+        balance: u64,
+        receiver: address
     }
 
     #[event]
@@ -156,22 +156,26 @@ module RampSup::ramp {
     //  - Emits an AssetAddedEvent when the asset is added
     //  - This function acquires the GlobalStorage resource
 
-    public entry fun add_asset(owner: &signer, asset: Object<Metadata>, fee: u64) acquires GlobalStorage {
-        let owner_addr = get_obj_address();
+    public entry fun add_asset(owner: &signer, asset: Object<Metadata>, fee: u64, initial_amount: u64) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
         // Ensure the global storage object exists
-        assert!(exists<GlobalStorage>(owner_addr), error::not_found(ENO_CONTRACT_STATE));
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
         // Ensure the owner is the one who is trying to add the asset
         assert!(
-            borrow_global<GlobalStorage>(owner_addr).owner == signer::address_of(owner),
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
             error::permission_denied(ENOT_OWNER)
         );
 
-        let global_storage = borrow_global_mut<GlobalStorage>(owner_addr);
+        let owner_store = ensure_primary_store_exists(signer::address_of(owner), asset);//supra_framework::primary_fungible_store::primary_store(signer::address_of(owner), asset);
 
-        let store_constructor_ref = &object::create_object(owner_addr);
+        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+
+        let store_constructor_ref = &object::create_object(obj_addr);
 
         let fa_store = fungible_asset::create_store(store_constructor_ref, asset);
 
+        fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
+        
         simple_map::upsert(
             &mut global_storage.vault_address,
             asset,
@@ -183,7 +187,13 @@ module RampSup::ramp {
             }
         );
     
-        event::emit(AssetAddedEvent { asset_address: asset });
+        event::emit(
+            AssetAddedEvent {
+                asset_address: asset,
+                fee_percentage: fee,
+                initial_amount: initial_amount
+            }
+        );
     }
 
     // function: remove_asset
@@ -232,7 +242,11 @@ module RampSup::ramp {
         };
         // Remove the asset from the allowed assets simple_map
         simple_map::remove(&mut borrow_global_mut<GlobalStorage>(obj_addr).vault_address, &asset);
-        event::emit(AssetRemovedEvent { asset_address: asset });
+        event::emit(AssetRemovedEvent {
+            asset_address: asset,
+            balance: balance,
+            receiver: asset_recipient
+        });
     }
 
     // function: set_contract_state
@@ -295,6 +309,18 @@ module RampSup::ramp {
     /// Deposit a fungible asset into the asset's vault
     public entry fun on_ramp_deposit(user: &signer, asset: Object<Metadata>, amount: u64) acquires GlobalStorage {
         let obj_address = get_obj_address();
+
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_CONTRACT_STATE));
+
+        // get global storage reference
+        let global_storage_ref = borrow_global_mut<GlobalStorage>(obj_address);
+
+        // assert the asset is listed
+        assert!(
+            simple_map::contains_key(&global_storage_ref.vault_address, &asset),
+            error::invalid_state(EASSET_NOT_ALLOWED)
+        );
         let user_store = ensure_primary_store_exists(signer::address_of(user), asset);
 
         let fungible_asset = fungible_asset::withdraw(
@@ -303,28 +329,21 @@ module RampSup::ramp {
             amount
         );
 
-        // Ensure the global storage object exists
-        assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_CONTRACT_STATE));
-
-        // get global storage reference
-        let global_storage_ref = borrow_global<GlobalStorage>(obj_address);
-
-        // assert the asset is listed
-        assert!(
-            simple_map::contains_key(&global_storage_ref.vault_address, &asset),
-            error::invalid_state(EASSET_NOT_ALLOWED)
-        );
         // get the asset vault
-        let asset_vault = simple_map::borrow(&global_storage_ref.vault_address, &asset);
+        let asset_vault = simple_map::borrow_mut(&mut global_storage_ref.vault_address, &asset);
 
         let amount = fungible_asset::amount(&fungible_asset);
         // deposit the fa to the store
         fungible_asset::deposit(asset_vault.store, fungible_asset);
 
+        let fee = asset_vault.asset_fee_percentage;
+        let fee_amount = amount * fee / 100;
+
+        asset_vault.asset_revenue = asset_vault.asset_revenue + fee_amount;
         // emit the depist event
         event::emit(RampDeposit {
             asset: asset,
-            amount: amount,
+            amount: amount - fee_amount,
             sender: signer::address_of(user)
         });
     }
@@ -468,13 +487,16 @@ module RampSup::ramp {
         simple_map::borrow(&borrow_global<GlobalStorage>(obj_address).vault_address, &asset).asset_fee_percentage
     }
 
+
+    #[test_only]
+    use std::option;
+    use std::string;
+    use supra_framework::primary_fungible_store::{Self, balance};
+    use supra_framework::fungible_asset::MintRef;
     #[test_only]
     struct TestInfo has drop {
         metadata: Object<Metadata>,
         mint_ref: MintRef,
-        transfer_ref: TransferRef,
-        burn_ref: BurnRef,
-        mut_metadata_ref: MutateMetadataRef,
         owner: signer,
         admin: signer,
         user_one: signer
@@ -487,28 +509,33 @@ module RampSup::ramp {
         supra_framework::account::create_account_for_test(signer::address_of(&owner));
         initialize(&owner, admin);
 
-        let (
-            mint_ref, 
-            transfer_ref, 
-            burn_ref, 
-            metadata_ref,
-            metadata
-        ) = supra_framework::fungible_asset::create_fungible_asset(&owner);
+        let token_metadata = &object::create_named_object(&owner, b"test");
+        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+            token_metadata,
+            option::none(),
+            string::utf8(b"test"),
+            string::utf8(b"test"),
+            8,
+            string::utf8(b""),
+            string::utf8(b""),
+        );
+        let mint_ref = fungible_asset::generate_mint_ref(token_metadata);
+        let fa = fungible_asset::mint(&mint_ref, 1000);
+        let metadata = fungible_asset::metadata_from_asset(&fa);
 
         let admin_signer = supra_framework::account::create_account_for_test(admin);
         let user_one_signer = supra_framework::account::create_account_for_test(user_one);
-        let admin_store = fungible_asset::create_test_store(&admin_signer, metadata);
-        let user_store = fungible_asset::create_test_store(&user_one_signer, metadata);
-        let fa = fungible_asset::mint(&mint_ref, 100);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&admin_signer), metadata);
+        supra_framework::fungible_asset::deposit(admin_store, fa);
 
-        fungible_asset::deposit(admin_store, fa);
+        assert!(
+            fungible_asset::balance(admin_store) == 1000,
+            error::invalid_argument(1)
+        );
 
         TestInfo {
             metadata: metadata,
             mint_ref: mint_ref,
-            transfer_ref: transfer_ref,
-            burn_ref: burn_ref,
-            mut_metadata_ref: metadata_ref,
             owner: owner,
             admin: admin_signer,
             user_one: user_one_signer
@@ -521,11 +548,27 @@ module RampSup::ramp {
         std::debug::print(&msg);
 
         let test_info = initialize_test(owner, admin, user_one);
-
-        add_asset(&test_info.admin, test_info.metadata, 1u64);
+        let initial_amount = 100u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        supra_framework::fungible_asset::deposit(admin_store, fa);
+        supra_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(
+            &test_info.admin, test_info.metadata, 1u64, initial_amount
+        );
 
         assert!(event::was_event_emitted(
-            &AssetAddedEvent { asset_address: test_info.metadata }
+            &AssetAddedEvent {
+                asset_address: test_info.metadata,
+                fee_percentage: 1u64,
+                initial_amount: initial_amount
+            }
         ), 4);
         assert!(is_asset_allowed(test_info.metadata), 1);
     }
@@ -536,14 +579,27 @@ module RampSup::ramp {
         std::debug::print(&msg);
 
         let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = 100u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, 1000);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        supra_framework::fungible_asset::deposit(admin_store, fa);
+        supra_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
-
-        add_asset(&test_info.admin, test_info.metadata, 1u64);
-
-        remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.admin));
+        remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one));
 
         assert!(event::was_event_emitted(
-            &AssetRemovedEvent { asset_address: test_info.metadata }
+            &AssetRemovedEvent {
+                asset_address: test_info.metadata,
+                balance: initial_amount,
+                receiver: signer::address_of(&test_info.user_one)
+            }
         ), 4);
         assert!(!is_asset_allowed(test_info.metadata), 5);
     }
@@ -573,5 +629,93 @@ module RampSup::ramp {
         assert!(event::was_event_emitted(
             &OwnerChangedEvent { new_owner }
         ), 2);
+    }
+
+    #[test(owner = @RampSup, admin= @0x2, user_1 = @0xCAFE)]
+    fun test_set_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for set_fee...");
+        std::debug::print(&msg);
+        let test_info = initialize_test(owner, admin, user_1);
+        let initial_amount = balance(admin, test_info.metadata);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+        set_fee(&test_info.admin, test_info.metadata, 2u64);
+        assert!(get_fee(test_info.metadata) == 2u64, 1);
+        assert!(event::was_event_emitted(
+            &AssetFeeChanged { asset: test_info.metadata, new_fee: 2u64 }
+        ), 2);
+    }
+
+    #[test(owner = @RampSup, admin= @0x2, user_1 = @0xCAFE)]
+    fun test_get_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for get_fee...");
+        std::debug::print(&msg);
+        let test_info = initialize_test(owner, admin, user_1);
+        let initial_amount = balance(admin, test_info.metadata);
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+        set_fee(&test_info.admin, test_info.metadata, 2u64);
+        assert!(get_fee(test_info.metadata) == 2u64, 1);
+    }
+
+    #[test(owner = @RampSup, admin= @0xface, user_one = @0xCafe)]
+    fun test_on_ramp_deposit(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for on_ramp_deposit...");
+        std::debug::print(&msg);
+
+        let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = 1000u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        supra_framework::fungible_asset::deposit(admin_store, fa);
+        supra_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+
+        on_ramp_deposit(&test_info.user_one, test_info.metadata, 100u64);
+
+        let fee = get_fee(test_info.metadata);
+        let fee_amount = 100u64 * fee / 100;
+        assert!(event::was_event_emitted(
+            &RampDeposit {
+                asset: test_info.metadata,
+                amount: 100u64 - fee_amount,
+                sender: signer::address_of(&test_info.user_one)
+            }
+        ), 4);
+    }
+
+
+    #[test(owner = @RampSup, admin= @0xface, user_one = @0xCafe)]
+    fun test_off_ramp_withdraw(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+        let msg: std::string::String = std::string::utf8(b"Running test for off_ramp_withdraw...");
+        std::debug::print(&msg);
+
+        let test_info = initialize_test(owner, admin, user_one);
+        let initial_amount = 1000u64;
+        let fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let user_fa = fungible_asset::mint(&test_info.mint_ref, initial_amount);
+        let admin_store = ensure_primary_store_exists(signer::address_of(&test_info.admin), test_info.metadata);
+        let user_store = ensure_primary_store_exists(signer::address_of(&test_info.user_one), test_info.metadata);
+        supra_framework::fungible_asset::deposit(admin_store, fa);
+        supra_framework::fungible_asset::deposit(user_store, user_fa);
+        assert!(
+            fungible_asset::balance(admin_store) >= initial_amount,
+            error::invalid_argument(1)
+        );
+        add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
+
+        off_ramp_withdraw(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one), 100u64);
+
+        assert!(event::was_event_emitted(
+            &RampWithdraw {
+                asset: test_info.metadata,
+                amount: 100u64,
+                recipient: signer::address_of(&test_info.user_one)
+            }
+        ), 4);
     }
 }
