@@ -7,11 +7,11 @@ use crate::{OnrampMedium, Region};
 
 
 #[contracttype]
-#[derive(Debug)]
-struct AssetAddedEvent {
-    funder: Address,
-    fee_percentage: i128,
-    initial_balance: i128,
+#[derive(Debug, Clone)]
+pub struct AssetAddedEvent{
+    pub funder: Address,
+    pub fee_percentage: i128,
+    pub initial_balance: i128,
 } 
 
 /// Emits an event indicating that a new asset has been added to the contract
@@ -39,9 +39,9 @@ pub fn emit_asset_added(env: &Env, asset: Address, funder: Address, fee_percenta
 
 #[contracttype]
 #[derive(Debug)]
-struct AssetRemovedEvent {
-    balance_receipient: Address,
-    amount: i128
+pub struct AssetRemovedEvent {
+    pub balance_receipient: Address,
+    pub amount: i128
 }
 /// Emits an event indicating that an asset has been removed from the contract
 /// 

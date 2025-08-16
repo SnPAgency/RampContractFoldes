@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Bytes, Env};
+use soroban_sdk::{contract, contractimpl, contracttype, panic_with_error, token, Address, Bytes, Env};
 use stellar_access::ownable::{self as ownable, Ownable};
 use stellar_contract_utils::pausable::{self as pausable, Pausable};
 use stellar_contract_utils::upgradeable::UpgradeableInternal;
@@ -7,11 +7,8 @@ use stellar_macros::{default_impl, only_owner, when_not_paused, when_paused, Upg
 
 mod events;
 mod errors;
-mod utils;
-
 use events::*;
 use errors::RampContractError;
-use utils::*;
 
 /**
  * @title RampContract
@@ -90,9 +87,10 @@ pub struct RampContract;
 
 #[contractimpl]
 impl RampContract {
-    pub fn __constructor(env: Env, admin: Address, max_assets: u32) {
+    pub fn __constructor(env: Env, admin: Address, vault_address: Address, max_assets: u32) {
         ownable::set_owner(&env, &admin);
         env.storage().instance().set(&RampContractState::MaxAssets, &max_assets);
+        env.storage().instance().set(&RampContractState::VaultAddress, &vault_address);
     }
 
     /// function add_asset 
@@ -112,9 +110,14 @@ impl RampContract {
     #[only_owner]
     #[when_not_paused]
     pub fn add_asset(env: &Env, asset: Address, funder: Address, fee_percentage: i128) -> Result<(), RampContractError> {
+        if fee_percentage < 0 || fee_percentage > 60 {
+            return Err(RampContractError::InvalidFeePercentage);
+        }
         let asset_key = RampContractState::AssetsInfo(asset.clone());
 
         let mut current_asset_info: AssetInfo = env.storage().instance().get(&asset_key).unwrap_or_default();
+
+
 
         if !current_asset_info.is_added {
 
@@ -197,11 +200,10 @@ impl RampContract {
     #[when_not_paused]
     pub fn change_vault_address(env: &Env, new_vault_address: Address) {
         let vault_address_key = RampContractState::VaultAddress;
-        let mut current_vault = env
+        let mut current_vault: Address = env
         .storage()
         .instance()
-        .get(&vault_address_key)
-        .unwrap_or(zero_address(env));
+        .get(&vault_address_key).unwrap();
 
         let old_vault_address = current_vault.clone();
         current_vault = new_vault_address.clone();
@@ -210,6 +212,28 @@ impl RampContract {
 
         emit_vault_address_changed(env, old_vault_address, new_vault_address);
     }
+
+    pub fn get_vault_address(env: &Env) -> Address {
+        let vault_address_key = RampContractState::VaultAddress;
+        env
+        .storage()
+        .instance()
+        .get(&vault_address_key)
+        .unwrap_or_else(|| panic_with_error!(env, RampContractError::VaultAddressNotFound))
+    }
+
+    pub fn get_asset_fee_percentage(env: &Env, asset: Address) -> i128 {
+        let asset_key = RampContractState::AssetsInfo(asset.clone());
+        let asset_info: AssetInfo = env.storage().instance().get(&asset_key).unwrap_or_default();
+        asset_info.asset_fee_percentage
+    }
+
+    pub fn get_asset_revenue(env: &Env, asset: Address) -> i128 {
+        let asset_key = RampContractState::AssetsInfo(asset.clone());
+        let asset_info: AssetInfo = env.storage().instance().get(&asset_key).unwrap_or_default();
+        asset_info.asset_revenue
+    }
+
     /// function withdraw_asset_revenue 
     /// sends an asset's generated revenue to the vault
     /// 
@@ -276,7 +300,9 @@ impl RampContract {
         let asset_key = RampContractState::AssetsInfo(asset.clone());
 
         let mut current_asset_info: AssetInfo = env.storage().instance().get(&asset_key).unwrap_or_default();
-
+        if new_fee_percentage < 0 || new_fee_percentage > 60 {
+            return Err(RampContractError::InvalidFeePercentage);
+        }
         if current_asset_info.is_added {
             let old_fee = current_asset_info.asset_fee_percentage;
             current_asset_info.asset_fee_percentage = new_fee_percentage;
@@ -328,7 +354,7 @@ impl RampContract {
             let fee = (current_asset_info.asset_fee_percentage * amount) / 100;
 
             let amount_min_fee = amount - fee;
-            token.transfer_from(&current_address, &sender, &current_address, &amount_min_fee);
+            token.transfer_from(&current_address, &sender, &current_address, &amount);
 
             current_asset_info.asset_revenue += fee;
 
@@ -338,7 +364,7 @@ impl RampContract {
         }
     }
 
-    /// function off_ramp_withdrwa
+    /// function off_ramp_withdraw
     /// 
     /// # Arguments
     /// 
@@ -353,7 +379,7 @@ impl RampContract {
     /// * data - [OffRampWithdrawEvent]
     ///
     #[when_not_paused]
-    pub fn off_ramp_withdrwa(
+    pub fn off_ramp_withdraw(
         env: &Env,
         asset: Address,
         recipient: Address,
