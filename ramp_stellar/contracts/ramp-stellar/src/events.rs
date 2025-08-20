@@ -114,9 +114,9 @@ pub fn emit_asset_fee_percentage_changed(env: &Env, asset: Address, old_fee_perc
 
 #[contracttype]
 #[derive(Debug)]
-struct RevenueWithdrawnEvent {
-    recipient: Address,
-    amount: i128
+pub struct RevenueWithdrawnEvent {
+    pub recipient: Address,
+    pub amount: i128
 }
 
 /// Emits an event indicating that the asset revenue has been changed
@@ -130,10 +130,10 @@ struct RevenueWithdrawnEvent {
 /// 
 /// # Events
 /// 
-/// * topics - [ASSET_REVENUE_CHANGED, asset]
+/// * topics - [ASSET_REVENUE_WITHDRAWN, asset]
 /// * data - [RevenueWithdrawnEvent]
 pub fn emit_asset_revenue_withdrawn(env: &Env, asset: Address, receiver: Address, revenue: i128) {
-    let topics = (Symbol::new(env, "ASSET_REVENUE_CHANGED"), asset);
+    let topics = (Symbol::new(env, "ASSET_REVENUE_WITHDRAWN"), asset);
 
     env.events().publish(topics, RevenueWithdrawnEvent {
         recipient: receiver,
@@ -144,11 +144,11 @@ pub fn emit_asset_revenue_withdrawn(env: &Env, asset: Address, receiver: Address
 
 #[contracttype]
 #[derive(Debug)]
-struct OnRampDepositEvent {
-    amount: i128,
-    medium: OnrampMedium,
-    region: Region,
-    data: Bytes
+pub struct OnRampDepositEvent {
+    pub amount: i128,
+    pub medium: OnrampMedium,
+    pub region: Region,
+    pub data: Bytes
 }
 
 /// Emits an event indicating that an onramp has occured
@@ -189,8 +189,8 @@ pub fn emit_onramp_deposit_event(
 
 #[contracttype]
 #[derive(Debug)]
-struct OffRampWithdrawEvent {
-    amount: i128,
+pub struct OffRampWithdrawEvent {
+    pub amount: i128,
 }
 
 /// Emits an event indicating that an offramp has occured

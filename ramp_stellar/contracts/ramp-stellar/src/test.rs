@@ -248,9 +248,35 @@ fn test_onramp_deposit() {
     assert_eq!(token_client.balance(&contract_id), user_init_balance);
 
     let onramp_amount = 1000i128;
+    let fee = client.get_asset_fee_percentage(&token_id);
+
+    let fee_amount = onramp_amount * fee / 100;
     token_client.approve(&test_user, &contract_id, &onramp_amount, &(env.ledger().sequence() + 100));
     client.onramp_deposit(&token_id, &onramp_amount, &test_user, &OnrampMedium::Primary, &Region::KEN, &Bytes::from_slice(&env, b"test"));
 
+    let topics = (Symbol::new(&env, "ONRAMP"), token_id.clone(), test_user.clone()).into_val(&env);
+    let data = OnRampDepositEvent {
+        amount: onramp_amount - fee_amount,
+        medium: OnrampMedium::Primary,
+        region: Region::KEN,
+        data: Bytes::from_slice(&env, b"test")
+    }.into_val(&env);
+    assert_eq!(
+        env.events().all(),
+        vec![
+            &env,
+            (
+                token_id.clone(),
+                (Symbol::new(&env, "transfer"), test_user.clone(), contract_id.clone()).into_val(&env),
+                onramp_amount.into_val(&env),
+            ),
+            (
+                contract_id.clone(),
+                topics,
+                data,
+            ),
+        ]
+    );
     assert_eq!(token_client.balance(&contract_id), user_init_balance + onramp_amount);
     assert_eq!(token_client.balance(&test_user), user_init_balance - onramp_amount);
 }
@@ -262,7 +288,7 @@ fn test_withdraw_asset_revenue() {
     let test_admin = Address::generate(&env);
     let test_user = Address::generate(&env);
     let vault_address = Address::generate(&env);
-    let contract_id = env.register(RampContract, (test_admin.clone(), vault_address, 10u32));
+    let contract_id = env.register(RampContract, (test_admin.clone(), vault_address.clone(), 10u32));
     let token_id = env.register(ramp_token::RampToken, (test_admin.clone(),));
     let client = RampContractClient::new(&env, &contract_id);
     let token_client = ramp_token::RampTokenClient::new(&env, &token_id);
@@ -282,12 +308,45 @@ fn test_withdraw_asset_revenue() {
 
     let onramp_amount = 1000i128;
     token_client.approve(&test_user, &contract_id, &onramp_amount, &(env.ledger().sequence() + 100));
-    client.onramp_deposit(&token_id, &onramp_amount, &test_user, &OnrampMedium::Primary, &Region::KEN, &Bytes::from_slice(&env, b"test"));
+    client.onramp_deposit(
+        &token_id,
+        &onramp_amount,
+        &test_user,
+        &OnrampMedium::Primary,
+        &Region::KEN,
+        &Bytes::from_slice(&env, b"test")
+    );
 
     assert_eq!(token_client.balance(&contract_id), user_init_balance + onramp_amount);
     assert_eq!(token_client.balance(&test_user), user_init_balance - onramp_amount);
+    let asset_revenue = client.get_asset_revenue(&token_id);
 
+    let topics = (Symbol::new(&env, "ASSET_REVENUE_WITHDRAWN"), token_id.clone()).into_val(&env);
+    let data = RevenueWithdrawnEvent {
+        recipient: client.get_vault_address(),
+        amount: asset_revenue
+    }.into_val(&env);
     client.withdraw_asset_revenue(&token_id);
+
+    assert_eq!(
+        env.events().all(),
+        vec![
+            &env,
+            (
+                token_id.clone(),
+                (Symbol::new(&env, "transfer"), contract_id.clone(), client.get_vault_address()).into_val(&env),
+                asset_revenue.into_val(&env),
+            ),
+            (
+                contract_id.clone(),
+                topics,
+                data,
+            ),
+        ]
+    );
+
+    assert_eq!(token_client.balance(&vault_address), asset_revenue);
+    assert_eq!(client.get_asset_revenue(&token_id), 0);
 }
 
 #[test]
@@ -323,4 +382,25 @@ fn test_offramp_withdraw() {
     assert_eq!(token_client.balance(&test_user), user_init_balance - onramp_amount);
     let recipient = Address::generate(&env);
     client.off_ramp_withdraw(&token_id, &recipient, &onramp_amount);
+
+    let topics = (Symbol::new(&env, "OFFRAMP"), token_id.clone(), recipient.clone()).into_val(&env);
+    let data = OffRampWithdrawEvent {
+        amount: onramp_amount,
+    }.into_val(&env);
+    assert_eq!(
+        env.events().all(),
+        vec![
+            &env,
+            (
+                token_id.clone(),
+                (Symbol::new(&env, "transfer"), contract_id.clone(), recipient.clone()).into_val(&env),
+                onramp_amount.into_val(&env),
+            ),
+            (   
+                contract_id.clone(),
+                topics,
+                data,
+            ),
+        ]
+    );
 }

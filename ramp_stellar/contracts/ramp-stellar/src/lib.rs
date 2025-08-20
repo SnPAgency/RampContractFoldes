@@ -41,7 +41,7 @@ pub enum RampContractState {
 //ie medium: Safaricom, Airtel, and PayStack
 #[contracttype]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum OnrampMedium {
+pub enum OnrampMedium {
     Primary,
     Secondary,
     Tertiary
@@ -50,7 +50,7 @@ enum OnrampMedium {
 // Region
 #[contracttype]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Region {
+pub enum Region {
     KEN,
     RWN,
     NGA,
@@ -116,8 +116,6 @@ impl RampContract {
         let asset_key = RampContractState::AssetsInfo(asset.clone());
 
         let mut current_asset_info: AssetInfo = env.storage().instance().get(&asset_key).unwrap_or_default();
-
-
 
         if !current_asset_info.is_added {
 
@@ -267,8 +265,8 @@ impl RampContract {
             let balance = token.balance(&env.current_contract_address());
             let current_revenue = current_asset_info.asset_revenue;
             if balance > current_revenue {
-                token.transfer(&env.current_contract_address(), &current_vault, &current_asset_info.asset_fee_percentage);
-                current_asset_info.asset_fee_percentage = 0;
+                token.transfer(&env.current_contract_address(), &current_vault, &current_revenue);
+                current_asset_info.asset_revenue = 0;
                 env.storage().instance().set(&asset_key, &current_asset_info);
                 emit_asset_revenue_withdrawn(env, asset, current_vault, current_revenue);
                 Ok(())
