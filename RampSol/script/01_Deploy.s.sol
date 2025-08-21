@@ -19,14 +19,12 @@ contract RampContractScript is Script {
 
         vm.startBroadcast(privateKey);
 
-        Options memory opts;
         address proxyAddress = Upgrades.deployTransparentProxy(
             "RampContract.sol",
             controller,
             abi.encodeCall(RampContract.initialize, (controller, vault))
         );
 
-//
         address implementationAddress = Upgrades.getImplementationAddress(proxyAddress);
         console.log("Implementation Address: ", implementationAddress);
         console.log("Proxy Address: ", proxyAddress);

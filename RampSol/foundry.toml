@@ -9,9 +9,11 @@ extra_output = ["storageLayout"]
 build_info = true
 #viaIR = true
 ast = true
+ffi = true
 
 [rpc_endpoints]
 localhost = "http://localhost:8545"
+sepolia = "${ALCHEMY_RPC_URL}"
 
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
