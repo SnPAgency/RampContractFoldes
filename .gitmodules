@@ -7,3 +7,6 @@
 [submodule "RampSol/lib/openzeppelin-contracts"]
 	path = RampSol/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "RampSol/lib/openzeppelin-foundry-upgrades"]
+	path = RampSol/lib/openzeppelin-foundry-upgrades
+	url = https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades

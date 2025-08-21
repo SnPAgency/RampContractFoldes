@@ -20,6 +20,7 @@ import {IERC20Permit} from "@openzeppelin-contracts/token/ERC20/extensions/IERC2
 import {IRampContract} from "./IRampContract.sol";
 import {Errors} from "./helpers/errors.sol";
 
+
 contract RampContract is
     Initializable,
     PausableUpgradeable,
