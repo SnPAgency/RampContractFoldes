@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {RampContract} from "../src/RampContract.sol";
 import {RampToken} from "../src/test_contract/TestToken.sol";

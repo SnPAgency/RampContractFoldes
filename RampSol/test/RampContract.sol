@@ -107,13 +107,13 @@ contract RampContractTestFunctionality is Test {
 
         (uint256 fee, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 100);
 
-        bytes32 domain_separator = rampToken1.DOMAIN_SEPARATOR();
-        bytes32 PERMIT_TYPEHASH = keccak256(
+        bytes32 domainSeparator = rampToken1.DOMAIN_SEPARATOR();
+        bytes32 permitTypehash = keccak256(
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
         );
-        bytes32 struct_hash = keccak256(
+        bytes32 structHash = keccak256(
             abi.encode(
-                PERMIT_TYPEHASH,
+                permitTypehash,
                 nonOwner,
                 address(rampContract),
                 100,
@@ -123,8 +123,8 @@ contract RampContractTestFunctionality is Test {
         );
         bytes32 digest = keccak256(abi.encodePacked(
             "\x19\x01",
-            domain_separator,
-            struct_hash
+            domainSeparator,
+            structHash
         ));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(3, digest);
 
