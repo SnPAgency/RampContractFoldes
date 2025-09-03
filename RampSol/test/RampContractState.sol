@@ -4,14 +4,14 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {RampContract} from "../src/RampContract.sol";
-import {RampToken} from "../src/test_contract/TestToken.sol";
+import {Token} from "../src/test_contract/TestToken.sol";
 import {IRampContract} from "../src/IRampContract.sol";
 import {Errors} from "../src/helpers/errors.sol";
 
 contract RampContractTest is Test {
     RampContract public rampContract;
-    RampToken public rampToken1;
-    RampToken public rampToken2;
+    Token public rampToken1;
+    Token public rampToken2;
 
     address public controller;
     address public vault;
@@ -21,8 +21,8 @@ contract RampContractTest is Test {
         controller = vm.addr(1);
         vault = vm.addr(2);
         nonOwner = vm.addr(3);
-        rampToken1 = new RampToken(controller);
-        rampToken2 = new RampToken(controller);
+        rampToken1 = new Token("Test", "TT", controller);
+        rampToken2 = new Token("Test", "TT", controller);
         rampContract = new RampContract();
         rampContract.initialize(controller, payable(vault));
     }

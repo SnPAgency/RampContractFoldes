@@ -157,13 +157,13 @@ module RampAptos::ramp {
 
 
 
-    public entry fun initialize(owner: &signer, admin: address) {
+    fun init_module(owner: &signer) {
         let constructor_ref = object::create_named_object(owner, RAMP_APTOS);
         let global_signer = &object::generate_signer(&constructor_ref);
         let extend_ref = object::generate_extend_ref(&constructor_ref);
         move_to(global_signer, GlobalStorage {
             is_active: true,
-            owner: admin,
+            owner: signer::address_of(owner),
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
             coin_vaults: simple_map::new<address, CoinVault>(),
             global_extend_ref: extend_ref,
@@ -712,11 +712,10 @@ module RampAptos::ramp {
     }
 
     #[test_only(owner = @RampAptos, admin = @0xface, user_one = @0xCafe)]
-    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo {
+    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for initialize...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, admin);
 
         let token_metadata = &object::create_named_object(&owner, b"test");
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
@@ -730,20 +729,19 @@ module RampAptos::ramp {
         );
         let mint_ref = fungible_asset::generate_mint_ref(token_metadata);
         let fa = fungible_asset::mint(&mint_ref, 1000);
-        //let user_fa = fungible_asset::mint(&mint_ref, 1000);
         let metadata = fungible_asset::metadata_from_asset(&fa);
-//
         let admin_signer = aptos_framework::account::create_account_for_test(admin);
         let user_one_signer = aptos_framework::account::create_account_for_test(user_one);
         let admin_store = ensure_primary_store_exists(signer::address_of(&admin_signer), metadata);
-        //let user_store = aptos_framework::fungible_asset::create_test_store(&user_one_signer, metadata);
         aptos_framework::fungible_asset::deposit(admin_store, fa);
-        //aptos_framework::fungible_asset::deposit(user_store, user_fa);
-//
+
         assert!(
             fungible_asset::balance(admin_store) == 1000,
             error::invalid_argument(1)
         );
+        init_module(&owner);
+        set_owner(&owner, admin);
+
         TestInfo {
             metadata: metadata,
             mint_ref: mint_ref,
@@ -753,11 +751,15 @@ module RampAptos::ramp {
         }
     }
 
+    #[test(owner=@RampAptos)]
+    fun test_init(owner: signer) {
+        init_module(&owner);
+    }
+
     #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
     fun test_add_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for add_asset...");
         std::debug::print(&msg);
-
         let test_info = initialize_test(owner, admin, user_one);
         let initial_amount = 100u64;
         let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
@@ -820,8 +822,8 @@ module RampAptos::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_contract_state...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, signer::address_of(&admin));
-        set_contract_state(&admin, false);
+        let test_info = initialize_test(owner, signer::address_of(&admin), signer::address_of(&admin));
+        set_contract_state(&test_info.admin, false);
         assert!(is_active() == false, 1);
         assert!(event::was_event_emitted(
             &ContractStateChangedEvent { new_state: false }
@@ -834,8 +836,8 @@ module RampAptos::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_owner...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, signer::address_of(&admin));
-        set_owner(&admin, new_owner);
+        let test_info = initialize_test(owner, signer::address_of(&admin), new_owner);
+        set_owner(&test_info.admin, new_owner);
         assert!(get_owner() == new_owner, 1);
         assert!(event::was_event_emitted(
             &OwnerChangedEvent { new_owner }
@@ -930,25 +932,25 @@ module RampAptos::ramp {
         ), 4);
     }
 
-    //#[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
-    //fun test_add_coin(owner: signer, admin: address, user_one: address) {//acquires GlobalStorage {
-    //    let msg: std::string::String = std::string::utf8(b"Running test for add_coin...");
-    //    std::debug::print(&msg);
-//
-    //    let coin = create_coin_and_mint<TestCoin>(&owner, 10);
-//
-    //    let test_info = initialize_test(owner, admin, user_one);
-//
-        //let coin_amount = coin::value(&coin);
-        //coin::deposit(signer::address_of(&test_info.admin), coin);
-        //add_asset(&test_info.admin, test_info.metadata, 1u64, coin_amount);
-//
-        //assert!(event::was_event_emitted(
-        //    &AssetAddedEvent {
-        //        asset_address: test_info.metadata,
-        //        fee_percentage: 1u64,
-        //        initial_amount: coin_amount
-        //    }
-        //), 4);
-    //}
+    ////#[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
+    ////fun test_add_coin(owner: signer, admin: address, user_one: address) {//acquires GlobalStorage {
+    ////    let msg: std::string::String = std::string::utf8(b"Running test for add_coin...");
+    ////    std::debug::print(&msg);
+////
+    ////    let coin = create_coin_and_mint<TestCoin>(&owner, 10);
+////
+    ////    let test_info = initialize_test(owner, admin, user_one);
+////
+    //    //let coin_amount = coin::value(&coin);
+    //    //coin::deposit(signer::address_of(&test_info.admin), coin);
+    //    //add_asset(&test_info.admin, test_info.metadata, 1u64, coin_amount);
+////
+    //    //assert!(event::was_event_emitted(
+    //    //    &AssetAddedEvent {
+    //    //        asset_address: test_info.metadata,
+    //    //        fee_percentage: 1u64,
+    //    //        initial_amount: coin_amount
+    //    //    }
+    //    //), 4);
+    ////}
 }

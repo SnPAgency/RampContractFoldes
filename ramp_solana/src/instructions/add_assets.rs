@@ -9,8 +9,8 @@ use solana_program::{
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct AddAssetsInstruction {
-    pub assets: Vec<Pubkey>,
-    pub fee_percentages: Vec<u128>,
+    pub asset: Pubkey,
+    pub fee_percentage: u128,
 }
 
 pub fn add_assets(
@@ -24,52 +24,29 @@ pub fn add_assets(
     
     msg!("Adding assets...");
 
-    // Validate input
-    if args.assets.len() != args.fee_percentages.len() {
-        msg!("Assets and fee percentages length mismatch");
-        return Err(RampError::InvalidInstruction.into());
-    }
-
-    if args.assets.is_empty() {
-        msg!("No assets provided");
-        return Err(RampError::InvalidInstruction.into());
-    }
-
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
 
-    if !ramp_state.is_initialized {
+    if !ramp_state.is_initialized && ramp_state.is_active && owner_account.is_signer && ramp_state.owner == *owner_account.key {
         msg!("Ramp account is not initialized");
         return Err(RampError::UninitializedAccount.into());
     }
 
-    // Check owner authorization
-    if !owner_account.is_signer {
-        msg!("Owner account must be signer");
-        return Err(RampError::InvalidSigner.into());
-    }
-
-    if ramp_state.owner != *owner_account.key {
-        msg!("Only owner can add assets");
-        return Err(RampError::Unauthorized.into());
-    }
-
     // Add the new assets with their fee percentages
-    for (i, asset) in args.assets.iter().enumerate() {
-        let fee_percentage = args.fee_percentages[i];
+    let fee_percentage = args.fee_percentage;
+    let asset = args.asset;
         
-        // Validate fee percentage (e.g., max 10000 basis points = 100%)
-        if fee_percentage > 10000 {
-            msg!("Fee percentage too high: {}", fee_percentage);
-            return Err(RampError::InvalidFeePercentage.into());
-        }
+    // Validate fee percentage (e.g., max 10000 basis points = 100%)
+    if fee_percentage > 10000 {
+        msg!("Fee percentage too high: {}", fee_percentage);
+        return Err(RampError::InvalidFeePercentage.into());
+    }
 
-        match ramp_state.add_asset(*asset, fee_percentage) {
-            Ok(()) => msg!("Added asset: {}", asset),
-            Err(_) => {
-                msg!("Asset already exists: {}", asset);
-                return Err(RampError::AssetAlreadyExists.into());
-            }
+    match ramp_state.add_asset(asset, fee_percentage) {
+        Ok(()) => msg!("Added asset: {}", asset),
+        Err(_) => {
+            msg!("Asset already exists: {}", asset);
+            return Err(RampError::AssetAlreadyExists.into());
         }
     }
 

@@ -39,7 +39,7 @@ pub mod RampToken {
 
     #[constructor]
     fn constructor(ref self: ContractState, recipient: ContractAddress, owner: ContractAddress) {
-        self.erc20.initializer("RampToken", "RTKN");
+        self.erc20.initializer("DAI TOKEN", "TOKEN");
         self.ownable.initializer(owner);
 
         self.erc20.mint(recipient, 100000000000000000000000);

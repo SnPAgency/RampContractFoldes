@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {RampContract} from "../src/RampContract.sol";
 import {Upgrades} from "../lib/openzeppelin-foundry-upgrades/src/Upgrades.sol";
 import {Options} from "../lib/openzeppelin-foundry-upgrades/src/Options.sol";
+//import {Errors} from "../src/helpers/errors.sol";
 
 contract RampContractScript is Script {
     RampContract public rampContract;
@@ -19,10 +20,13 @@ contract RampContractScript is Script {
 
         vm.startBroadcast(privateKey);
 
+        //Errors errorLib = new Errors();
+
         address proxyAddress = Upgrades.deployTransparentProxy(
             "RampContract.sol",
             controller,
             abi.encodeCall(RampContract.initialize, (controller, vault))
+
         );
 
         address implementationAddress = Upgrades.getImplementationAddress(proxyAddress);

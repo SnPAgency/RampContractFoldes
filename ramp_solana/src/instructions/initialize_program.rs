@@ -28,8 +28,8 @@ pub fn initialize_program(
     let system_program_account = next_account_info(account_info_iter)?;
 
     // Validate max_assets parameter
-    if args.max_assets == 0 || args.max_assets > 100 {
-        msg!("Invalid max_assets: must be between 1 and 100");
+    if args.max_assets < 1 || args.max_assets > 10 {
+        msg!("Invalid max_assets: must be between 1 and 10");
         return Err(RampError::InvalidInstruction.into());
     }
 

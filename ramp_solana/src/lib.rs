@@ -172,18 +172,16 @@ mod tests {
 //
     //    println!("Testing add assets...");
 //
-    //    let asset1 = Pubkey::new_unique();
-    //    let asset2 = Pubkey::new_unique();
-    //    let assets = vec![asset1, asset2];
-    //    let fee_percentages = vec![100, 200]; // 1% and 2%
+    //    let asset = Pubkey::new_unique();
+    //    let fee_percentage = 100;
 //
     //    let add_assets_instruction = Instruction::new_with_borsh(
     //        program_id,
     //        &processors::RampInstruction {
     //            instruction: processors::Instruction::AddAssets(
     //                AddAssetsInstruction {
-    //                    assets: assets.clone(),
-    //                    fee_percentages: fee_percentages.clone(),
+    //                    asset,
+    //                    fee_percentage,
     //                }
     //            ),
     //        },
@@ -204,13 +202,12 @@ mod tests {
     //        .expect("Failed to get ramp state");
 //
     //    let assets = ramp_state.get_assets();
-    //    assert_eq!(assets.len(), 2, "Should have 2 assets");
-    //    assert!(assets.contains(&asset1), "Should contain asset1");
-    //    assert!(assets.contains(&asset2), "Should contain asset2");
+    //    assert_eq!(assets.len(), 1, "Should have 1 asset");
+    //    assert!(assets.contains(&asset), "Should contain asset");
     //    
     //    // Check asset info
-    //    let asset1_info = ramp_state.get_asset_info(&asset1).expect("Asset1 info should exist");
-    //    assert_eq!(asset1_info.asset_fee_percentage, 100, "Asset1 fee should be 100");
+    //    let asset_info = ramp_state.get_asset_info(&asset).expect("Asset info should exist");
+    //    assert_eq!(asset_info.asset_fee_percentage, 100, "Asset fee should be 100");
     //    
     //    println!("Add assets test passed!");
     //}
@@ -234,17 +231,16 @@ mod tests {
 
         println!("Testing unauthorized add assets...");
 
-        let asset1 = Pubkey::new_unique();
-        let assets = vec![asset1];
-        let fee_percentages = vec![100];
+        let asset = Pubkey::new_unique();
+        let fee_percentage = 100;
 
         let add_assets_instruction = Instruction::new_with_borsh(
             program_id,
             &processors::RampInstruction {
                 instruction: processors::Instruction::AddAssets(
                     AddAssetsInstruction {
-                        assets,
-                        fee_percentages,
+                        asset,
+                        fee_percentage,
                     }
                 ),
             },
@@ -456,17 +452,16 @@ mod tests {
 
         println!("Testing add assets with invalid fee...");
 
-        let asset1 = Pubkey::new_unique();
-        let assets = vec![asset1];
-        let fee_percentages = vec![15000]; // > 10000 basis points (100%)
+        let asset = Pubkey::new_unique();
+        let fee_percentage = 15000; // > 10000 basis points (100%)
 
         let add_assets_instruction = Instruction::new_with_borsh(
             program_id,
             &processors::RampInstruction {
                 instruction: processors::Instruction::AddAssets(
                     AddAssetsInstruction {
-                        assets,
-                        fee_percentages,
+                        asset,
+                        fee_percentage,
                     }
                 ),
             },

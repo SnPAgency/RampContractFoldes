@@ -9,6 +9,9 @@ module RampSup::ramp {
         Metadata,
         FungibleStore,
     };
+    //use supra_framework::supra_coin::{Self, AptosCoin};
+    use aptos_std::type_info;
+    use supra_framework::coin;
     use supra_framework::primary_fungible_store::{ensure_primary_store_exists, deposit};
 
     /// Errors
@@ -28,7 +31,7 @@ module RampSup::ramp {
     const EINSUFICIENT_ASSET_BALANCE: u64 = 5; 
 
     /// global storage name
-    const RAMP_APTOS: vector<u8> = b"RAMP_SUPRA_GLOBAL_STORAGE";
+    const RAMP_APTOS: vector<u8> = b"RAMP_APTOS_GLOBAL_STORAGE";
 
     #[resource_group_member(group = supra_framework::object::ObjectGroup)]
     /// Global Storage
@@ -46,6 +49,10 @@ module RampSup::ramp {
         /// vault address
         /// address where assets are stored
         vault_address: simple_map::SimpleMap<Object<Metadata>, VaultStore>,
+
+        coin_vaults: simple_map::SimpleMap<address, CoinVault>,
+
+        global_extend_ref: ExtendRef,
    }
 
     /// Vault where assets are stored
@@ -65,12 +72,36 @@ module RampSup::ramp {
         asset_revenue: u64
     }
 
+    struct CoinVault has store, drop {
+        /// Coin store
+        store_amount: u64,
+
+        coin_revenue: u64,
+
+        coin_fee_percentage: u64,
+    }
+
     #[event]
     /// Event emitted when an asset is added
     struct AssetAddedEvent has store, drop {
         asset_address: Object<Metadata>,
         fee_percentage: u64,
         initial_amount: u64
+    }
+
+    #[event]
+    /// Event emitted when a coin is added
+    struct CoinAddedEvent has store, drop {
+        coin_address: address,
+        amount: u64,
+    }
+
+    #[event]
+    /// Event emitted when a coin is removed
+    struct CoinRemovedEvent has store, drop {
+        coin_address: address,
+        amount: u64,
+        recipient: address,
     }
 
     #[event]
@@ -126,14 +157,142 @@ module RampSup::ramp {
 
 
 
-    public entry fun initialize(owner: &signer, admin: address) {
+    fun init_module(owner: &signer) {
         let constructor_ref = object::create_named_object(owner, RAMP_APTOS);
         let global_signer = &object::generate_signer(&constructor_ref);
-        
+        let extend_ref = object::generate_extend_ref(&constructor_ref);
         move_to(global_signer, GlobalStorage {
             is_active: true,
-            owner: admin,
+            owner: signer::address_of(owner),
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
+            coin_vaults: simple_map::new<address, CoinVault>(),
+            global_extend_ref: extend_ref,
+        });
+    }
+
+    /// function: add_coin
+    /// # Parameters
+    ///  - `owner`: The signer who is adding the coin
+    ///  - `fee`: The fee percentage for the coin
+    ///  - `amount`: The amount of the coin to be added
+    /// # Notice
+    ///  - The contract owner must be the one who is adding the coin
+    ///  - Emits a CoinAddedEvent when the coin is added
+    ///  - This function acquires the GlobalStorage resource
+    public entry fun add_coin<CoinType>(owner: &signer, fee: u64, amount: u64) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
+        // Ensure the owner is the one who is trying to add the asset
+        assert!(
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
+            error::permission_denied(ENOT_OWNER)
+        );
+        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+        
+        let coin_amount = coin::withdraw<CoinType>(owner, amount);
+
+
+        simple_map::upsert(&mut global_storage.coin_vaults, get_coin_address<CoinType>(), CoinVault {
+            store_amount: amount,
+            coin_revenue: 0u64,
+            coin_fee_percentage: fee,
+        });
+
+        coin::deposit<CoinType>(obj_addr, coin_amount);
+
+        event::emit(CoinAddedEvent {
+            coin_address: get_coin_address<CoinType>(),
+            amount,
+        });
+
+    }
+
+    /// function: remove_coin
+    /// # Parameters
+    ///  - `owner`: The signer who is removing the coin
+    ///  - `recipient`: The address of the recipient of the coin
+    /// # Notice
+    ///  - The contract owner must be the one who is removing the coin
+    ///  - The coin must be in the coin_vaults simple_map
+    ///  - Emits a CoinRemovedEvent when the coin is removed
+    ///  - This function acquires the GlobalStorage resource
+    public entry fun remove_coin<CoinType>(owner: &signer, recipient: address) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
+        // Ensure the owner is the one who is trying to add the asset
+        assert!(
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
+            error::permission_denied(ENOT_OWNER)
+        );
+        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+        simple_map::remove(&mut global_storage.coin_vaults, &get_coin_address<CoinType>());
+        let coin_balance = coin::balance<CoinType>(obj_addr);
+        let coin_amount = coin::withdraw<CoinType>(owner, coin_balance);
+        coin::deposit<CoinType>(recipient, coin_amount);
+        event::emit(CoinRemovedEvent {
+            coin_address: get_coin_address<CoinType>(),
+            amount: coin_balance,
+            recipient,
+        });
+    }
+
+    /// function: onramp_coin
+    /// # Parameters
+    ///  - `owner`: The signer who is onramping the coin
+    ///  - `amount`: The amount of the coin to be onramped
+    /// # Notice
+    ///  - The contract owner must be the one who is onramping the coin
+    ///  - The coin must be in the coin_vaults simple_map
+    ///  - Emits a CoinAddedEvent when the coin is onramped
+    ///  - This function acquires the GlobalStorage resource
+    public entry fun onramp_coin<CoinType>(owner: &signer, amount: u64) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
+        // Ensure the owner is the one who is trying to add the asset
+        assert!(
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
+            error::permission_denied(ENOT_OWNER)
+        );
+        //let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+        let coin_amount = coin::withdraw<CoinType>(owner, amount);
+        coin::deposit<CoinType>(obj_addr, coin_amount);
+        event::emit(CoinAddedEvent {
+            coin_address: get_coin_address<CoinType>(),
+            amount,
+        });
+    }
+
+    /// function: offramp_coin
+    /// # Parameters
+    ///  - `owner`: The signer who is offramping the coin
+    ///  - `receiver`: The address of the receiver of the coin
+    ///  - `amount`: The amount of the coin to be offramped
+    /// # Notice
+    ///  - The contract owner must be the one who is offramping the coin
+    ///  - The coin must be in the coin_vaults simple_map
+    ///  - Emits a CoinRemovedEvent when the coin is offramped
+    ///  - This function acquires the GlobalStorage resource
+    public entry fun offramp_coin<CoinType>(owner: &signer, receiver: address, amount: u64) acquires GlobalStorage {
+        let obj_addr = get_obj_address();
+        // Ensure the global storage object exists
+        assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
+        // Ensure the owner is the one who is trying to add the asset
+        assert!(
+            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
+            error::permission_denied(ENOT_OWNER)
+        );
+        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+        let coin_balance = coin::balance<CoinType>(obj_addr);
+
+        let obj_signer = &object::generate_signer_for_extending(&global_storage.global_extend_ref);
+        let coin_amount = coin::withdraw<CoinType>(obj_signer, coin_balance);
+        coin::deposit<CoinType>(receiver, coin_amount);
+        event::emit(CoinAddedEvent {
+            coin_address: get_coin_address<CoinType>(),
+            amount,
         });
     }
 
@@ -143,6 +302,10 @@ module RampSup::ramp {
     //  - This function is used to get the address of the global storage object
     fun get_obj_address(): address {
         object::create_object_address(&@RampSup, RAMP_APTOS)
+    }
+
+    fun get_coin_address<CoinType>(): address {
+        type_info::account_address(&type_info::type_of<CoinType>())
     }
 
     // function add_asset
@@ -307,6 +470,14 @@ module RampSup::ramp {
 
 
     /// Deposit a fungible asset into the asset's vault
+    /// # Parameters
+    ///  - `user`: The signer who is depositing the asset
+    ///  - `asset`: The asset to be deposited
+    ///  - `amount`: The amount of the asset to be deposited
+    /// # Notice
+    ///  - The asset must be listed in the vault_address simple_map
+    ///  - Emits a RampDeposit event when the asset is deposited
+    ///  - This function acquires the GlobalStorage resource
     public entry fun on_ramp_deposit(user: &signer, asset: Object<Metadata>, amount: u64) acquires GlobalStorage {
         let obj_address = get_obj_address();
 
@@ -348,9 +519,16 @@ module RampSup::ramp {
         });
     }
 
-
     /// Withdraw an asset for the vault
-    /// only called by the owner of the module
+    /// # Parameters
+    ///  - `admin`: The signer who is withdrawing the asset
+    ///  - `asset`: The asset to be withdrawn
+    ///  - `recipient`: The address of the recipient of the asset
+    ///  - `amount`: The amount of the asset to be withdrawn
+    /// # Notice
+    ///  - The asset must be listed in the vault_address simple_map
+    ///  - Emits a RampWithdraw event when the asset is withdrawn
+    ///  - This function acquires the GlobalStorage resource
     public entry fun off_ramp_withdraw(admin: &signer, asset: Object<Metadata>, recipient: address, amount: u64) acquires GlobalStorage {
         
         let obj_address = get_obj_address();
@@ -402,6 +580,14 @@ module RampSup::ramp {
     }
 
     /// Change the fee percentage charged on an asset
+    /// # Parameters
+    ///  - `admin`: The signer who is changing the fee
+    ///  - `asset`: The asset to be changed
+    ///  - `new_fee`: The new fee percentage
+    /// # Notice
+    ///  - The asset must be listed in the vault_address simple_map
+    ///  - Emits an AssetFeeChanged event when the fee is changed
+    ///  - This function acquires the GlobalStorage resource
     public entry fun set_fee(admin: &signer, asset: Object<Metadata>, new_fee: u64) acquires GlobalStorage {
         let obj_address = get_obj_address();
         // Ensure the global storage object exists
@@ -490,9 +676,12 @@ module RampSup::ramp {
 
     #[test_only]
     use std::option;
-    use std::string;
-    use supra_framework::primary_fungible_store::{Self, balance};
+    use supra_framework::primary_fungible_store;
     use supra_framework::fungible_asset::MintRef;
+
+    #[test_only]
+    struct TestCoin {}
+
     #[test_only]
     struct TestInfo has drop {
         metadata: Object<Metadata>,
@@ -502,27 +691,45 @@ module RampSup::ramp {
         user_one: signer
     }
 
+    #[test_only]
+    fun create_coin_and_mint<CoinType>(creator: &signer, amount: u64): coin::Coin<CoinType> {
+        let (burn_cap, freeze_cap, mint_cap) = coin::initialize<CoinType>(
+            creator,
+            std::string::utf8(b"Test"),
+            std::string::utf8(b"Test"),
+            8,
+            true,
+        );
+
+        //supra_framework::managed_coin::register<CoinType>(creator);
+        //create_coin_conversion_map<CoinType>(creator);
+        let coin = coin::mint<CoinType>(amount, &mint_cap);
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_freeze_cap(freeze_cap);
+        coin::destroy_mint_cap(mint_cap);
+        //coin::deposit<CoinType>(signer::address_of(creator), coin);
+        coin
+    }
+
     #[test_only(owner = @RampSup, admin = @0xface, user_one = @0xCafe)]
-    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo {
+    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for initialize...");
         std::debug::print(&msg);
         supra_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, admin);
 
         let token_metadata = &object::create_named_object(&owner, b"test");
         primary_fungible_store::create_primary_store_enabled_fungible_asset(
             token_metadata,
             option::none(),
-            string::utf8(b"test"),
-            string::utf8(b"test"),
+            std::string::utf8(b"test"),
+            std::string::utf8(b"test"),
             8,
-            string::utf8(b""),
-            string::utf8(b""),
+            std::string::utf8(b""),
+            std::string::utf8(b""),
         );
         let mint_ref = fungible_asset::generate_mint_ref(token_metadata);
         let fa = fungible_asset::mint(&mint_ref, 1000);
         let metadata = fungible_asset::metadata_from_asset(&fa);
-
         let admin_signer = supra_framework::account::create_account_for_test(admin);
         let user_one_signer = supra_framework::account::create_account_for_test(user_one);
         let admin_store = ensure_primary_store_exists(signer::address_of(&admin_signer), metadata);
@@ -532,6 +739,8 @@ module RampSup::ramp {
             fungible_asset::balance(admin_store) == 1000,
             error::invalid_argument(1)
         );
+        init_module(&owner);
+        set_owner(&owner, admin);
 
         TestInfo {
             metadata: metadata,
@@ -542,11 +751,15 @@ module RampSup::ramp {
         }
     }
 
+    #[test(owner=@RampSup)]
+    fun test_init(owner: signer) {
+        init_module(&owner);
+    }
+
     #[test(owner = @RampSup, admin= @0xface, user_one = @0xCafe)]
     fun test_add_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
         let msg: std::string::String = std::string::utf8(b"Running test for add_asset...");
         std::debug::print(&msg);
-
         let test_info = initialize_test(owner, admin, user_one);
         let initial_amount = 100u64;
         let fa = fungible_asset::mint(&test_info.mint_ref, 1000);
@@ -609,8 +822,8 @@ module RampSup::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_contract_state...");
         std::debug::print(&msg);
         supra_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, signer::address_of(&admin));
-        set_contract_state(&admin, false);
+        let test_info = initialize_test(owner, signer::address_of(&admin), signer::address_of(&admin));
+        set_contract_state(&test_info.admin, false);
         assert!(is_active() == false, 1);
         assert!(event::was_event_emitted(
             &ContractStateChangedEvent { new_state: false }
@@ -623,8 +836,8 @@ module RampSup::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_owner...");
         std::debug::print(&msg);
         supra_framework::account::create_account_for_test(signer::address_of(&owner));
-        initialize(&owner, signer::address_of(&admin));
-        set_owner(&admin, new_owner);
+        let test_info = initialize_test(owner, signer::address_of(&admin), new_owner);
+        set_owner(&test_info.admin, new_owner);
         assert!(get_owner() == new_owner, 1);
         assert!(event::was_event_emitted(
             &OwnerChangedEvent { new_owner }
@@ -636,7 +849,7 @@ module RampSup::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
-        let initial_amount = balance(admin, test_info.metadata);
+        let initial_amount = primary_fungible_store::balance(admin, test_info.metadata);
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);
@@ -650,7 +863,7 @@ module RampSup::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for get_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
-        let initial_amount = balance(admin, test_info.metadata);
+        let initial_amount = primary_fungible_store::balance(admin, test_info.metadata);
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);
@@ -718,4 +931,26 @@ module RampSup::ramp {
             }
         ), 4);
     }
+
+    ////#[test(owner = @RampSup, admin= @0xface, user_one = @0xCafe)]
+    ////fun test_add_coin(owner: signer, admin: address, user_one: address) {//acquires GlobalStorage {
+    ////    let msg: std::string::String = std::string::utf8(b"Running test for add_coin...");
+    ////    std::debug::print(&msg);
+////
+    ////    let coin = create_coin_and_mint<TestCoin>(&owner, 10);
+////
+    ////    let test_info = initialize_test(owner, admin, user_one);
+////
+    //    //let coin_amount = coin::value(&coin);
+    //    //coin::deposit(signer::address_of(&test_info.admin), coin);
+    //    //add_asset(&test_info.admin, test_info.metadata, 1u64, coin_amount);
+////
+    //    //assert!(event::was_event_emitted(
+    //    //    &AssetAddedEvent {
+    //    //        asset_address: test_info.metadata,
+    //    //        fee_percentage: 1u64,
+    //    //        initial_amount: coin_amount
+    //    //    }
+    //    //), 4);
+    ////}
 }
