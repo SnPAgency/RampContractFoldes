@@ -161,9 +161,10 @@ module RampAptos::ramp {
         let constructor_ref = object::create_named_object(owner, RAMP_APTOS);
         let global_signer = &object::generate_signer(&constructor_ref);
         let extend_ref = object::generate_extend_ref(&constructor_ref);
+        let admin = object::root_owner(object::object_from_constructor_ref<object::ObjectCore>(&constructor_ref));
         move_to(global_signer, GlobalStorage {
             is_active: true,
-            owner: signer::address_of(owner),
+            owner: admin,
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
             coin_vaults: simple_map::new<address, CoinVault>(),
             global_extend_ref: extend_ref,
@@ -339,7 +340,7 @@ module RampAptos::ramp {
 
         fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
         
-        simple_map::upsert(
+        simple_map::add(
             &mut global_storage.vault_address,
             asset,
             VaultStore {
@@ -383,11 +384,6 @@ module RampAptos::ramp {
             error::permission_denied(ENOT_OWNER)
         );
 
-        // Ensure the asset is in the allowed assets simple_map
-        assert!(simple_map::contains_key(&global_storage.vault_address, &asset),
-            error::not_found(ENO_ASSET)
-        );
-    
         let vault = simple_map::borrow(&global_storage.vault_address, &asset);
         let balance = fungible_asset::balance(vault.store);
 
@@ -676,8 +672,6 @@ module RampAptos::ramp {
 
     #[test_only]
     use std::option;
-    use aptos_framework::primary_fungible_store;
-    use aptos_framework::fungible_asset::MintRef;
 
     #[test_only]
     struct TestCoin {}
@@ -685,7 +679,7 @@ module RampAptos::ramp {
     #[test_only]
     struct TestInfo has drop {
         metadata: Object<Metadata>,
-        mint_ref: MintRef,
+        mint_ref: aptos_framework::fungible_asset::MintRef,
         owner: signer,
         admin: signer,
         user_one: signer
@@ -718,7 +712,7 @@ module RampAptos::ramp {
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
 
         let token_metadata = &object::create_named_object(&owner, b"test");
-        primary_fungible_store::create_primary_store_enabled_fungible_asset(
+        aptos_framework::primary_fungible_store::create_primary_store_enabled_fungible_asset(
             token_metadata,
             option::none(),
             std::string::utf8(b"test"),
@@ -849,7 +843,7 @@ module RampAptos::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for set_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
-        let initial_amount = primary_fungible_store::balance(admin, test_info.metadata);
+        let initial_amount = aptos_framework::primary_fungible_store::balance(admin, test_info.metadata);
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);
@@ -863,7 +857,7 @@ module RampAptos::ramp {
         let msg: std::string::String = std::string::utf8(b"Running test for get_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
-        let initial_amount = primary_fungible_store::balance(admin, test_info.metadata);
+        let initial_amount = aptos_framework::primary_fungible_store::balance(admin, test_info.metadata);
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);

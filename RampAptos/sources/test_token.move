@@ -128,7 +128,7 @@ module RampAptos::fa_coin {
         owner: &signer,
         asset: Object<Metadata>,
     ): &ManagedFungibleAsset acquires ManagedFungibleAsset {
-        assert!(object::is_owner(asset, signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
+        assert!(object::root_owner(asset) == signer::address_of(owner), error::permission_denied(ENOT_OWNER));
         borrow_global<ManagedFungibleAsset>(object::object_address(&asset))
     }
 
