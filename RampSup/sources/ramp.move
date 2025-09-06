@@ -161,9 +161,10 @@ module RampSup::ramp {
         let constructor_ref = object::create_named_object(owner, RAMP_APTOS);
         let global_signer = &object::generate_signer(&constructor_ref);
         let extend_ref = object::generate_extend_ref(&constructor_ref);
+        let admin = object::root_owner(object::object_from_constructor_ref<object::ObjectCore>(&constructor_ref));
         move_to(global_signer, GlobalStorage {
             is_active: true,
-            owner: signer::address_of(owner),
+            owner: admin,
             vault_address: simple_map::new<Object<Metadata>, VaultStore>(),
             coin_vaults: simple_map::new<address, CoinVault>(),
             global_extend_ref: extend_ref,
@@ -339,7 +340,7 @@ module RampSup::ramp {
 
         fungible_asset::transfer(owner, owner_store, fa_store, initial_amount);
         
-        simple_map::upsert(
+        simple_map::add(
             &mut global_storage.vault_address,
             asset,
             VaultStore {
@@ -381,11 +382,6 @@ module RampSup::ramp {
         assert!(borrow_global<GlobalStorage>(
             obj_addr).owner == owner_addr,
             error::permission_denied(ENOT_OWNER)
-        );
-
-        // Ensure the asset is in the allowed assets simple_map
-        assert!(simple_map::contains_key(&global_storage.vault_address, &asset),
-            error::not_found(ENO_ASSET)
         );
     
         let vault = simple_map::borrow(&global_storage.vault_address, &asset);
