@@ -348,7 +348,8 @@ module RampAptos::ramp {
     // # Notice
     //  - Returns the address of the global storage object
     //  - This function is used to get the address of the global storage object
-    fun get_obj_address(): address {
+    #[view]
+    public fun get_obj_address(): address {
         object::create_object_address(&@RampAptos, RAMP_APTOS)
     }
 
@@ -749,7 +750,7 @@ module RampAptos::ramp {
     }
 
     #[test_only(owner = @RampAptos, admin = @0xface, user_one = @0xCafe)]
-    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo acquires GlobalStorage {
+    public fun initialize_test(owner: signer, admin: address, user_one: address): TestInfo acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for initialize...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
@@ -794,7 +795,7 @@ module RampAptos::ramp {
     }
 
     #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
-    fun test_add_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+    fun test_add_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for add_asset...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_one);
@@ -813,18 +814,16 @@ module RampAptos::ramp {
             &test_info.admin, test_info.metadata, 1u64, initial_amount
         );
 
-        assert!(event::was_event_emitted(
-            &AssetAddedEvent {
-                asset_address: test_info.metadata,
-                fee_percentage: 1u64,
-                initial_amount: initial_amount
-            }
-        ), 4);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).asset_added_event_handle, &AssetAddedEvent {
+            asset_address: test_info.metadata,
+            fee_percentage: 1u64,
+            initial_amount: initial_amount
+        }), 4);
         assert!(is_asset_allowed(test_info.metadata), 1);
     }
 
     #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
-    fun test_remove_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+    fun test_remove_asset(owner: signer, admin: address, user_one: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for remove_asset...");
         std::debug::print(&msg);
 
@@ -844,45 +843,39 @@ module RampAptos::ramp {
 
         remove_asset(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one));
 
-        assert!(event::was_event_emitted(
-            &AssetRemovedEvent {
-                asset_address: test_info.metadata,
-                balance: initial_amount,
-                receiver: signer::address_of(&test_info.user_one)
-            }
-        ), 4);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).asset_removed_event_handle, &AssetRemovedEvent {
+            asset_address: test_info.metadata,
+            balance: initial_amount,
+            receiver: signer::address_of(&test_info.user_one)
+        }), 4);
         assert!(!is_asset_allowed(test_info.metadata), 5);
     }
 
     #[test(owner = @RampAptos, admin= @0x2)]
-    fun test_set_contract_state(owner: signer, admin: signer) acquires GlobalStorage {
+    fun test_set_contract_state(owner: signer, admin: signer) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for set_contract_state...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         let test_info = initialize_test(owner, signer::address_of(&admin), signer::address_of(&admin));
         set_contract_state(&test_info.admin, false);
         assert!(is_active() == false, 1);
-        assert!(event::was_event_emitted(
-            &ContractStateChangedEvent { new_state: false }
-        ), 2);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).contract_state_changed_event_handle, &ContractStateChangedEvent { new_state: false }), 2);
     }
 
 
     #[test(owner = @RampAptos, admin= @0x2, new_owner = @0x4)]
-    fun test_set_owner(owner: signer, admin: signer, new_owner: address) acquires GlobalStorage {
+    fun test_set_owner(owner: signer, admin: signer, new_owner: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for set_owner...");
         std::debug::print(&msg);
         aptos_framework::account::create_account_for_test(signer::address_of(&owner));
         let test_info = initialize_test(owner, signer::address_of(&admin), new_owner);
         set_owner(&test_info.admin, new_owner);
         assert!(get_owner() == new_owner, 1);
-        assert!(event::was_event_emitted(
-            &OwnerChangedEvent { new_owner }
-        ), 2);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).owner_changed_event_handle, &OwnerChangedEvent { new_owner }), 2);
     }
 
     #[test(owner = @RampAptos, admin= @0x2, user_1 = @0xCAFE)]
-    fun test_set_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+    fun test_set_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for set_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
@@ -890,13 +883,11 @@ module RampAptos::ramp {
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
         set_fee(&test_info.admin, test_info.metadata, 2u64);
         assert!(get_fee(test_info.metadata) == 2u64, 1);
-        assert!(event::was_event_emitted(
-            &AssetFeeChanged { asset: test_info.metadata, new_fee: 2u64 }
-        ), 2);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).asset_fee_changed_event_handle, &AssetFeeChanged { asset: test_info.metadata, new_fee: 2u64 }), 2);
     }
 
     #[test(owner = @RampAptos, admin= @0x2, user_1 = @0xCAFE)]
-    fun test_get_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage {
+    fun test_get_fee(owner: signer, admin: address, user_1: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for get_fee...");
         std::debug::print(&msg);
         let test_info = initialize_test(owner, admin, user_1);
@@ -907,7 +898,7 @@ module RampAptos::ramp {
     }
 
     #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
-    fun test_on_ramp_deposit(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+    fun test_on_ramp_deposit(owner: signer, admin: address, user_one: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for on_ramp_deposit...");
         std::debug::print(&msg);
 
@@ -929,18 +920,16 @@ module RampAptos::ramp {
 
         let fee = get_fee(test_info.metadata);
         let fee_amount = 100u64 * fee / 100;
-        assert!(event::was_event_emitted(
-            &RampDeposit {
-                asset: test_info.metadata,
-                amount: 100u64 - fee_amount,
-                sender: signer::address_of(&test_info.user_one)
-            }
-        ), 4);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).deposit_event_handle, &RampDeposit {
+            asset: test_info.metadata,
+            amount: 100u64 - fee_amount,
+            sender: signer::address_of(&test_info.user_one)
+        }), 4);
     }
 
 
     #[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]
-    fun test_off_ramp_withdraw(owner: signer, admin: address, user_one: address) acquires GlobalStorage {
+    fun test_off_ramp_withdraw(owner: signer, admin: address, user_one: address) acquires GlobalStorage, RampEventStore {
         let msg: std::string::String = std::string::utf8(b"Running test for off_ramp_withdraw...");
         std::debug::print(&msg);
 
@@ -960,13 +949,11 @@ module RampAptos::ramp {
 
         off_ramp_withdraw(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one), 100u64);
 
-        assert!(event::was_event_emitted(
-            &RampWithdraw {
-                asset: test_info.metadata,
-                amount: 100u64,
-                recipient: signer::address_of(&test_info.user_one)
-            }
-        ), 4);
+        assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).withdraw_event_handle, &RampWithdraw {
+            asset: test_info.metadata,
+            amount: 100u64,
+            recipient: signer::address_of(&test_info.user_one)
+        }), 4);
     }
 
     ////#[test(owner = @RampAptos, admin= @0xface, user_one = @0xCafe)]

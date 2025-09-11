@@ -75,11 +75,11 @@ build_ramp_aptos() {
     fi
     
     print_status "Compiling Move modules..."
-    if aptos move compile; then
+    if aptos move compile --dev; then
         print_success "RampAptos compilation successful"
         
         print_status "Running Move tests..."
-        if aptos move test; then
+        if aptos move test --dev; then
             print_success "RampAptos tests passed"
             record_result "RampAptos" "SUCCESS"
         else
