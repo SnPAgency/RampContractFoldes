@@ -23,8 +23,8 @@ jobs:
     - name: Build and Test RampAptos
       run: |
         cd RampAptos
-        aptos move compile
-        aptos move test
+        aptos move compile --dev
+        aptos move test --dev
 
   # Job for Solidity Foundry contracts
   foundry:
@@ -158,7 +158,6 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@nightly
-
     - name: Install Solana CLI
       run: |
         sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
@@ -193,9 +192,6 @@ jobs:
     - name: Build and Test ramp_solana
       run: |
         cd ramp_solana
-        cargo add solana-program-test@1.18.26 --dev
-        cargo add solana-sdk@1.18.26 --dev
-        cargo add tokio --dev
         cargo test-sbf -- --nocapture
 
   # Job for Stellar Soroban contracts
@@ -204,7 +200,6 @@ jobs:
     if: contains(github.event.head_commit.modified, 'ramp_stellar/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-    
       - name: Cache Cargo dependencies
         uses: actions/cache@v3
         with:
@@ -255,128 +250,128 @@ jobs:
         scarb build
         snforge test
 
-  # Job to run complete workflow
-  complete-workflow:
-    runs-on: ubuntu-latest
-    needs: [aptos, foundry, supra, solana, stellar, starknet]
-    if: always()
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Install all dependencies
-      shell: bash
-      run: |
-        # Install Rust
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        source ~/.cargo/env
-        
-        # Install Foundry directly
-        mkdir -p $HOME/.foundry/bin
-        curl -L https://github.com/foundry-rs/foundry/releases/download/nightly/foundry_nightly_linux_amd64.tar.gz | tar -xz -C $HOME/.foundry/bin
-        chmod +x $HOME/.foundry/bin/*
-        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.foundry/bin:$PATH"
-
-        
-        # Install Aptos CLI
-        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
-        
-        # Install Stellar CLI dependencies and CLI
-        rustup target add wasm32v1-none
-        sudo apt update
-        sudo apt install -y libdbus-1-dev pkg-config libudev-dev
-        cargo install --locked stellar-cli@23.0.0
-        
-        # Install Scarb with explicit shell handling
-        export SHELL=/bin/bash
-        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
-        
-        # Install StarkNet Foundry (snforge) with proper setup
-        echo "Installing StarkNet Foundry..."
-        curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
-        
-        # Source bashrc to get snfoundryup in PATH
-        source ~/.bashrc || true
-        export PATH="$HOME/.local/bin:$PATH"
-        
-        # Run snfoundryup to actually install the tools
-        echo "Running snfoundryup to install StarkNet Foundry tools..."
-        if command -v snfoundryup >/dev/null 2>&1; then
-          snfoundryup
-        else
-          echo "snfoundryup not found, trying direct installation..."
-          # Try installing via cargo if snfoundryup is not available
-          cargo install --git https://github.com/foundry-rs/starknet-foundry --tag v0.47.0 --bins --locked || true
-        fi
-        
-        # Wait a moment for installation to complete
-        sleep 3
-        
-        # Check if snforge was installed correctly
-        if [ -f "$HOME/.local/bin/snforge" ]; then
-          echo "✅ snforge found at $HOME/.local/bin/snforge"
-          chmod +x "$HOME/.local/bin/snforge"
-        elif command -v snforge >/dev/null 2>&1; then
-          echo "✅ snforge found in PATH: $(which snforge)"
-        else
-          echo "❌ snforge still not found after installation attempts"
-        fi
-        
-        # Verify installations and add to PATH
-        ls -la $HOME/.local/bin/ || true
-        ls -la $HOME/.cargo/bin/ || true
-        ls -la $HOME/.foundry/bin/ || true
-        
-        # Add to PATH for subsequent steps
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
-        
-        # Test that tools are available with comprehensive verification
-        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.foundry/bin:$PATH"
-        
-        echo "Verifying tool installations:"
-        if which scarb > /dev/null 2>&1; then
-          echo "✅ Scarb: $(which scarb) - $(scarb --version)"
-        else
-          echo "❌ Scarb not found in PATH"
-        fi
-        
-        if which snforge > /dev/null 2>&1; then
-          echo "✅ snforge: $(which snforge) - $(snforge --version)"
-        else
-          echo "❌ snforge not found in PATH"
-          # Try to find it manually
-          find $HOME -name "snforge" -type f 2>/dev/null | head -5
-        fi
-        
-        if which aptos > /dev/null 2>&1; then
-          echo "✅ Aptos: $(which aptos) - $(aptos --version)"
-        else
-          echo "❌ Aptos not found in PATH"
-        fi
-        
-        if which forge > /dev/null 2>&1; then
-          echo "✅ Forge: $(which forge) - $(forge --version)"
-        else
-          echo "❌ Forge not found in PATH"
-        fi
-        
-        if which cargo > /dev/null 2>&1; then
-          echo "✅ Cargo: $(which cargo) - $(cargo --version)"
-        else
-          echo "❌ Cargo not found in PATH"
-        fi
-        
-        if which stellar > /dev/null 2>&1; then
-          echo "✅ Stellar: $(which stellar) - $(stellar --version)"
-        else
-          echo "❌ Stellar not found in PATH"
-        fi
-
-    - name: Run Complete Workflow
-      run: |
-        chmod +x build_all.sh
-        ./build_all.sh
+#  # Job to run complete workflow
+#  complete-workflow:
+#    runs-on: ubuntu-latest
+#    needs: [aptos, foundry, supra, solana, stellar, starknet]
+#    if: always()
+#    steps:
+#    - uses: actions/checkout@v4
+#      with:
+#        submodules: recursive
+#
+#    - name: Install all dependencies
+#      shell: bash
+#      run: |
+#        # Install Rust
+#        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+#        source ~/.cargo/env
+#        
+#        # Install Foundry directly
+#        mkdir -p $HOME/.foundry/bin
+#        curl -L https://github.com/foundry-rs/foundry/releases/download/nightly/foundry_nightly_linux_amd64.tar.gz | tar -xz -C $HOME/.foundry/bin
+#        chmod +x $HOME/.foundry/bin/*
+#        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+#        export PATH="$HOME/.foundry/bin:$PATH"
+#
+#        
+#        # Install Aptos CLI
+#        curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+#        
+#        # Install Stellar CLI dependencies and CLI
+#        rustup target add wasm32v1-none
+#        sudo apt update
+#        sudo apt install -y libdbus-1-dev pkg-config libudev-dev
+#        cargo install --locked stellar-cli@23.0.0
+#        
+#        # Install Scarb with explicit shell handling
+#        export SHELL=/bin/bash
+#        curl --proto '=https' --tlsv1.2 -sSf https://docs.swmansion.com/scarb/install.sh | sh
+#        
+#        # Install StarkNet Foundry (snforge) with proper setup
+#        echo "Installing StarkNet Foundry..."
+#        curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+#        
+#        # Source bashrc to get snfoundryup in PATH
+#        source ~/.bashrc || true
+#        export PATH="$HOME/.local/bin:$PATH"
+#        
+#        # Run snfoundryup to actually install the tools
+#        echo "Running snfoundryup to install StarkNet Foundry tools..."
+#        if command -v snfoundryup >/dev/null 2>&1; then
+#          snfoundryup
+#        else
+#          echo "snfoundryup not found, trying direct installation..."
+#          # Try installing via cargo if snfoundryup is not available
+#          cargo install --git https://github.com/foundry-rs/starknet-foundry --tag v0.47.0 --bins --locked || true
+#        fi
+#        
+#        # Wait a moment for installation to complete
+#        sleep 3
+#        
+#        # Check if snforge was installed correctly
+#        if [ -f "$HOME/.local/bin/snforge" ]; then
+#          echo "✅ snforge found at $HOME/.local/bin/snforge"
+#          chmod +x "$HOME/.local/bin/snforge"
+#        elif command -v snforge >/dev/null 2>&1; then
+#          echo "✅ snforge found in PATH: $(which snforge)"
+#        else
+#          echo "❌ snforge still not found after installation attempts"
+#        fi
+#        
+#        # Verify installations and add to PATH
+#        ls -la $HOME/.local/bin/ || true
+#        ls -la $HOME/.cargo/bin/ || true
+#        ls -la $HOME/.foundry/bin/ || true
+#        
+#        # Add to PATH for subsequent steps
+#        echo "$HOME/.local/bin" >> $GITHUB_PATH
+#        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+#        echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+#        
+#        # Test that tools are available with comprehensive verification
+#        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.foundry/bin:$PATH"
+#        
+#        echo "Verifying tool installations:"
+#        if which scarb > /dev/null 2>&1; then
+#          echo "✅ Scarb: $(which scarb) - $(scarb --version)"
+#        else
+#          echo "❌ Scarb not found in PATH"
+#        fi
+#        
+#        if which snforge > /dev/null 2>&1; then
+#          echo "✅ snforge: $(which snforge) - $(snforge --version)"
+#        else
+#          echo "❌ snforge not found in PATH"
+#          # Try to find it manually
+#          find $HOME -name "snforge" -type f 2>/dev/null | head -5
+#        fi
+#        
+#        if which aptos > /dev/null 2>&1; then
+#          echo "✅ Aptos: $(which aptos) - $(aptos --version)"
+#        else
+#          echo "❌ Aptos not found in PATH"
+#        fi
+#        
+#        if which forge > /dev/null 2>&1; then
+#          echo "✅ Forge: $(which forge) - $(forge --version)"
+#        else
+#          echo "❌ Forge not found in PATH"
+#        fi
+#        
+#        if which cargo > /dev/null 2>&1; then
+#          echo "✅ Cargo: $(which cargo) - $(cargo --version)"
+#        else
+#          echo "❌ Cargo not found in PATH"
+#        fi
+#        
+#        if which stellar > /dev/null 2>&1; then
+#          echo "✅ Stellar: $(which stellar) - $(stellar --version)"
+#        else
+#          echo "❌ Stellar not found in PATH"
+#        fi
+#
+#    - name: Run Complete Workflow
+#      run: |
+#        chmod +x build_all.sh
+#        ./build_all.sh#
