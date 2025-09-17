@@ -14,7 +14,6 @@ script {
         fa_coin::mint(owner, signer::address_of(owner), 1000);
 
         ramp::add_asset(owner, metadata, 1u64, 1000);
-
     }
     
 }
