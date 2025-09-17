@@ -1,3 +1,4 @@
 .aptos/
 build/
 /script.mv
+.env
