@@ -11,7 +11,7 @@ openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", ta
 
 
 [dev-dependencies]
-snforge_std = "0.48.0"
+snforge_std_deprecated = "0.50.0"
 assert_macros = "2.11.4"
 
 
@@ -23,7 +23,7 @@ build-external-contracts = []
 test = "snforge test"
 
 [tool.scarb]
-allow-prebuilt-plugins = ["snforge_std"]
+allow-prebuilt-plugins = ["snforge_std_deprecated"]
 
 # Visit https://foundry-rs.github.io/starknet-foundry/appendix/scarb-toml.html for more information
 

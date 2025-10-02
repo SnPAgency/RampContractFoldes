@@ -1,3 +1,3 @@
 #! /bin/bash
-aptos move compile --named-addresses RampAptos=0xe46b2c641295892276b13fc6cf6d6237bd8cb2fa16c66263840038dac83b9572 \
-&& aptos move upgrade-object --address-name RampAptos --object-address 0xe46b2c641295892276b13fc6cf6d6237bd8cb2fa16c66263840038dac83b9572 --profile phydy
+aptos move compile --named-addresses RampAptos=0xe56f319912e4aa2543314ee049cacc6920b79a8a0582993ba194e732764f0147 \
+&& aptos move upgrade-object --address-name RampAptos --object-address 0xe56f319912e4aa2543314ee049cacc6920b79a8a0582993ba194e732764f0147 --profile phydy

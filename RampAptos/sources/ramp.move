@@ -177,7 +177,7 @@ module RampAptos::ramp {
 
     #[event]
     /// Event emitted when a coin is added
-    struct CoinOnrampEvent has store, drop {
+    struct CoinOfframpEvent has store, drop {
         coin_address: address,
         amount: u64,
         medium: u8,
@@ -187,7 +187,7 @@ module RampAptos::ramp {
 
     #[event]
     /// Event emitted when a coin is removed
-    struct CoinOfframpEvent has store, drop {
+    struct CoinOnrampEvent has store, drop {
         coin_address: address,
         amount: u64,
         recipient: address,
@@ -300,7 +300,7 @@ module RampAptos::ramp {
         );
     }
 
-    /// function: onramp_coin
+    /// function: offramp_coin
     /// # Parameters
     ///  - `owner`: The signer who is onramping the coin
     ///  - `amount`: The amount of the coin to be onramped
@@ -309,27 +309,27 @@ module RampAptos::ramp {
     ///  - The coin must be in the coin_vaults simple_map
     ///  - Emits a CoinAddedEvent when the coin is onramped
     ///  - This function acquires the GlobalStorage resource
-    public entry fun onramp_coin<CoinType>(
+    public entry fun offramp_coin<CoinType>(
         owner: &signer,
         amount: u64,
         medium: u8,
         region: u8,
         data: vector<u8>
-    ) acquires GlobalStorage, RampEventStore {
+    ) acquires RampEventStore {
         let obj_addr = get_obj_address();
         // Ensure the global storage object exists
         assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
         // Ensure the owner is the one who is trying to add the asset
-        assert!(
-            borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
-            error::permission_denied(ENOT_OWNER)
-        );
+        //assert!(
+        //    borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
+        //    error::permission_denied(ENOT_OWNER)
+        //);
         //let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
         let coin_amount = coin::withdraw<CoinType>(owner, amount);
         coin::deposit<CoinType>(obj_addr, coin_amount);
         event::emit_event(
-            &mut borrow_global_mut<RampEventStore>(obj_addr).coin_onramp_event_handle,
-            CoinOnrampEvent {
+            &mut borrow_global_mut<RampEventStore>(obj_addr).coin_offramp_event_handle,
+            CoinOfframpEvent {
                 coin_address: get_coin_address<CoinType>(),
                 amount,
                 medium,
@@ -339,17 +339,17 @@ module RampAptos::ramp {
     );
     }
 
-    /// function: offramp_coin
+    /// function: onramp_coin
     /// # Parameters
-    ///  - `owner`: The signer who is offramping the coin
+    ///  - `owner`: The signer who is onramping the coin
     ///  - `receiver`: The address of the receiver of the coin
-    ///  - `amount`: The amount of the coin to be offramped
+    ///  - `amount`: The amount of the coin to be onramped
     /// # Notice
-    ///  - The contract owner must be the one who is offramping the coin
+    ///  - The contract owner must be the one who is onramping the coin
     ///  - The coin must be in the coin_vaults simple_map
-    ///  - Emits a CoinRemovedEvent when the coin is offramped
+    ///  - Emits a CoinRemovedEvent when the coin is onramped
     ///  - This function acquires the GlobalStorage resource
-    public entry fun offramp_coin<CoinType>(owner: &signer, receiver: address, amount: u64) acquires GlobalStorage, RampEventStore {
+    public entry fun onramp_coin<CoinType>(owner: &signer, receiver: address, amount: u64) acquires GlobalStorage, RampEventStore {
         let obj_addr = get_obj_address();
         // Ensure the global storage object exists
         assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
@@ -365,8 +365,8 @@ module RampAptos::ramp {
         let coin_amount = coin::withdraw<CoinType>(obj_signer, coin_balance);
         coin::deposit<CoinType>(receiver, coin_amount);
         event::emit_event(
-            &mut borrow_global_mut<RampEventStore>(obj_addr).coin_offramp_event_handle,
-            CoinOfframpEvent {
+            &mut borrow_global_mut<RampEventStore>(obj_addr).coin_onramp_event_handle,
+            CoinOnrampEvent {
                 coin_address: get_coin_address<CoinType>(),
                 amount,
                 recipient: receiver,
@@ -559,7 +559,7 @@ module RampAptos::ramp {
     ///  - The asset must be listed in the vault_address simple_map
     ///  - Emits a RampDeposit event when the asset is deposited
     ///  - This function acquires the GlobalStorage resource
-    public entry fun on_ramp_deposit(
+    public entry fun off_ramp_deposit(
         user: &signer,
         asset: Object<Metadata>,
         amount: u64,
@@ -623,7 +623,7 @@ module RampAptos::ramp {
     ///  - The asset must be listed in the vault_address simple_map
     ///  - Emits a RampWithdraw event when the asset is withdrawn
     ///  - This function acquires the GlobalStorage resource
-    public entry fun off_ramp_withdraw(admin: &signer, asset: Object<Metadata>, recipient: address, amount: u64) acquires GlobalStorage, RampEventStore {
+    public entry fun on_ramp_withdraw(admin: &signer, asset: Object<Metadata>, recipient: address, amount: u64) acquires GlobalStorage, RampEventStore {
         
         let obj_address = get_obj_address();
         // Ensure the owner is the one who is trying to add the asset
@@ -769,6 +769,11 @@ module RampAptos::ramp {
         assert!(exists<GlobalStorage>(obj_address), error::not_found(ENO_ASSET));
         // Check if the asset is in the allowed assets simple_map
         simple_map::borrow(&borrow_global<GlobalStorage>(obj_address).vault_address, &asset).asset_fee_percentage
+    }
+
+    #[view]
+    public fun get_asset_name(asset: Object<Metadata>): std::string::String {
+        fungible_asset::symbol(asset)
     }
 
 
@@ -974,7 +979,7 @@ module RampAptos::ramp {
         );
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
-        on_ramp_deposit(&test_info.user_one, test_info.metadata, 100u64, 1u8, 1u8, b"test");
+        off_ramp_deposit(&test_info.user_one, test_info.metadata, 100u64, 1u8, 1u8, b"test");
 
         let fee = get_fee(test_info.metadata);
         let fee_amount = 100u64 * fee / 100;
@@ -1008,7 +1013,7 @@ module RampAptos::ramp {
         );
         add_asset(&test_info.admin, test_info.metadata, 1u64, initial_amount);
 
-        off_ramp_withdraw(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one), 100u64);
+        on_ramp_withdraw(&test_info.admin, test_info.metadata, signer::address_of(&test_info.user_one), 100u64);
 
         assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).withdraw_event_handle, &RampWithdraw {
             asset: test_info.metadata,
