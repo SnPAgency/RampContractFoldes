@@ -5,9 +5,11 @@ authors = []
 
 [addresses]
 RampAptos = "_"
+TestToken = "0x0f4a054b2e2878d5fe972cf789cbb0bc6946c1f970c6a2cfab6166aee5dd9d44"
 
 [dev-addresses]
 RampAptos = "0x70c1e9dc6500d8cf161a4716302924dde0d198478a65adc8cff27805b1107a31"
+TestToken = "0x6fd7a4b151461a18caaadce6504a894e6b5cb1e722e351c4ba03e40fd7cdaf2c"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"

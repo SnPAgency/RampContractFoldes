@@ -8,7 +8,12 @@ pub mod RampStark {
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use openzeppelin::upgrades::UpgradeableComponent;
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{
+        IERC20Dispatcher,
+        IERC20DispatcherTrait,
+        IERC20MetadataDispatcher,
+        IERC20MetadataDispatcherTrait
+    };
     use starknet::{ClassHash, ContractAddress, get_caller_address, get_contract_address};
     use starknet::storage::{
         Map,
@@ -126,6 +131,7 @@ pub mod RampStark {
         pub amount: u256,
         #[key]
         pub sender: ContractAddress,
+        pub asset_name: ByteArray,
         pub medium: OnrampMedium,
         pub region: Region,
         pub data: ByteArray
@@ -319,6 +325,7 @@ pub mod RampStark {
 
             let token = IERC20Dispatcher { contract_address: asset };
 
+
             assert(
                 token.transfer_from(sender, get_contract_address(), amount),
                 RampErrors::TOKEN_DEPOSIT_FAILED
@@ -336,6 +343,7 @@ pub mod RampStark {
                     asset: asset,
                     amount: amount - fee,
                     sender: get_caller_address(),
+                    asset_name: IERC20MetadataDispatcher{ contract_address: asset }.symbol(),
                     medium,
                     region,
                     data
