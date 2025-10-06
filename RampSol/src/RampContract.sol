@@ -11,7 +11,7 @@ pragma solidity ^0.8.30;
  */
 
 import {PausableUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/PausableUpgradeable.sol";
-import {ReentrancyGuardTransientUpgradeable} from "@openzeppelin-contracts-upgradeable/utils/ReentrancyGuardTransientUpgradeable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin-contracts/utils/ReentrancyGuardTransient.sol";
 import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
@@ -25,7 +25,7 @@ contract RampContract is
     Initializable,
     PausableUpgradeable,
     OwnableUpgradeable,
-    ReentrancyGuardTransientUpgradeable
+    ReentrancyGuardTransient
 {
 
     /**

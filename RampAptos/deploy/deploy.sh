@@ -1,3 +1,3 @@
 #! /bin/bash
-aptos move compile --named-addresses RampAptos=0x6f276be61cdbd8e5c1a99ed191179b41068b980a6c644bc0feb1061c636250d5 \
-&& aptos move deploy-object --address-name RampAptos --profile phydy
+aptos move compile --named-addresses RampAptos=0x87994ad2d5e6947f6d472e015a67adc779d23f306d1d50b199647f829b215390 \
+&& aptos move deploy-object --address-name RampAptos --profile sub

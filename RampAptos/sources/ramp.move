@@ -146,6 +146,7 @@ module RampAptos::ramp {
 
     struct RampDeposit has store, drop {
         asset: Object<Metadata>,
+        asset_name: std::string::String,
         amount: u64,
         sender: address,
         medium: u8,
@@ -179,6 +180,8 @@ module RampAptos::ramp {
     /// Event emitted when a coin is added
     struct CoinOfframpEvent has store, drop {
         coin_address: address,
+        coin_name: std::string::String,
+        sender: address,
         amount: u64,
         medium: u8,
         region: u8,
@@ -315,22 +318,24 @@ module RampAptos::ramp {
         medium: u8,
         region: u8,
         data: vector<u8>
-    ) acquires RampEventStore {
+    ) acquires GlobalStorage, RampEventStore {
         let obj_addr = get_obj_address();
         // Ensure the global storage object exists
         assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
-        // Ensure the owner is the one who is trying to add the asset
-        //assert!(
-        //    borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
-        //    error::permission_denied(ENOT_OWNER)
-        //);
-        //let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
         let coin_amount = coin::withdraw<CoinType>(owner, amount);
         coin::deposit<CoinType>(obj_addr, coin_amount);
+
+        let coin_vault = simple_map::borrow_mut(&mut borrow_global_mut<GlobalStorage>(obj_addr).coin_vaults, &get_coin_address<CoinType>());
+        let fee = coin_vault.coin_fee_percentage;
+        let fee_amount = amount * fee / 100;
+
+        coin_vault.coin_revenue += fee_amount;
         event::emit_event(
             &mut borrow_global_mut<RampEventStore>(obj_addr).coin_offramp_event_handle,
             CoinOfframpEvent {
                 coin_address: get_coin_address<CoinType>(),
+                coin_name: coin::symbol<CoinType>(),
+                sender: signer::address_of(owner),
                 amount,
                 medium,
                 region,
@@ -349,7 +354,11 @@ module RampAptos::ramp {
     ///  - The coin must be in the coin_vaults simple_map
     ///  - Emits a CoinRemovedEvent when the coin is onramped
     ///  - This function acquires the GlobalStorage resource
-    public entry fun onramp_coin<CoinType>(owner: &signer, receiver: address, amount: u64) acquires GlobalStorage, RampEventStore {
+    public entry fun onramp_coin<CoinType>(
+        owner: &signer,
+        receiver: address,
+        amount: u64
+    ) acquires GlobalStorage, RampEventStore {
         let obj_addr = get_obj_address();
         // Ensure the global storage object exists
         assert!(exists<GlobalStorage>(obj_addr), error::not_found(ENO_CONTRACT_STATE));
@@ -358,12 +367,17 @@ module RampAptos::ramp {
             borrow_global<GlobalStorage>(obj_addr).owner == signer::address_of(owner),
             error::permission_denied(ENOT_OWNER)
         );
-        let global_storage = borrow_global_mut<GlobalStorage>(obj_addr);
+        let global_storage = borrow_global<GlobalStorage>(obj_addr);
         let coin_balance = coin::balance<CoinType>(obj_addr);
 
+        let balance = coin::balance<CoinType>(obj_addr);
+        let coin_vault = simple_map::borrow(&global_storage.coin_vaults, &get_coin_address<CoinType>());
+
+        assert!(balance - coin_vault.coin_revenue >= amount, error::invalid_argument(EINSUFICIENT_ASSET_BALANCE));
         let obj_signer = &object::generate_signer_for_extending(&global_storage.global_extend_ref);
         let coin_amount = coin::withdraw<CoinType>(obj_signer, coin_balance);
         coin::deposit<CoinType>(receiver, coin_amount);
+        
         event::emit_event(
             &mut borrow_global_mut<RampEventStore>(obj_addr).coin_onramp_event_handle,
             CoinOnrampEvent {
@@ -604,6 +618,7 @@ module RampAptos::ramp {
             &mut borrow_global_mut<RampEventStore>(obj_address).deposit_event_handle,
             RampDeposit {
                 asset: asset,
+                asset_name: fungible_asset::symbol(asset),
                 amount: amount - fee_amount,
                 sender: signer::address_of(user),
                 medium,
@@ -649,7 +664,7 @@ module RampAptos::ramp {
         // ensure the asset balance in vault is enough
         // @phydy: check later with the project comissions
         assert!(
-            fungible_asset::balance(asset_vault.store) > amount,
+            fungible_asset::balance(asset_vault.store) > amount - asset_vault.asset_revenue,
             error::invalid_argument(EINSUFICIENT_ASSET_BALANCE)
         );
 
@@ -985,6 +1000,7 @@ module RampAptos::ramp {
         let fee_amount = 100u64 * fee / 100;
         assert!(event::was_event_emitted_by_handle(&borrow_global<RampEventStore>(get_obj_address()).deposit_event_handle, &RampDeposit {
             asset: test_info.metadata,
+            asset_name: fungible_asset::symbol(test_info.metadata),
             amount: 100u64 - fee_amount,
             sender: signer::address_of(&test_info.user_one),
             medium: 1u8,

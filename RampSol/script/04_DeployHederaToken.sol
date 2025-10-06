@@ -12,7 +12,7 @@ contract HederaTokenScript is Script {
     function run() public {
 
         uint256 privateKey = vm.envUint("HEDERA_PRIVATE_KEY");
-        address controller = vm.envAddress("HEDERA_CONTROLLER");
+        address controller = vm.envAddress("HEDERA_CONTROLER");
         vm.startBroadcast(privateKey);
 
         token = new Token("USDT Coin", "USDT", controller);

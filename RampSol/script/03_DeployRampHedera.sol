@@ -14,7 +14,7 @@ contract RampHederaContractScript is Script {
     function run() public {
 
         uint256 privateKey = vm.envUint("HEDERA_PRIVATE_KEY");
-        address controller = vm.envAddress("HEDERA_CONTROLLER");
+        address controller = vm.envAddress("HEDERA_CONTROLER");
         address payable vault = payable(vm.envAddress("HEDERA_VAULT"));
 
         vm.startBroadcast(privateKey);

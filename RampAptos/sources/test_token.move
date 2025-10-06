@@ -1,7 +1,7 @@
 /// A 2-in-1 module that combines managed_fungible_asset and coin_example into one module that when deployed, the
 /// deployer will be creating a new managed fungible asset with the hardcoded supply config, name, symbol, and decimals.
 /// The address of the asset can be obtained via get_metadata(). As a simple version, it only deals with primary stores.
-module RampAptos::fa_coin {
+module TestToken::fa_coin {
     use aptos_framework::fungible_asset::{Self, MintRef, TransferRef, BurnRef, Metadata, FungibleAsset};
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
@@ -14,8 +14,8 @@ module RampAptos::fa_coin {
     /// Only fungible asset metadata owner can make changes.
     const ENOT_OWNER: u64 = 1;
 
-    const ASSET_NAME: vector<u8> = b"FA Coin";
-    const ASSET_SYMBOL: vector<u8> = b"FA";
+    const ASSET_NAME: vector<u8> = b"USDT Coin";
+    const ASSET_SYMBOL: vector<u8> = b"USDT";
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     /// Hold refs to control the minting, transfer and burning of fungible assets.
@@ -53,7 +53,7 @@ module RampAptos::fa_coin {
     #[view]
     /// Return the address of the managed fungible asset that's created when this module is deployed.
     public fun get_metadata(): Object<Metadata> {
-        let asset_address = object::create_object_address(&@RampAptos, ASSET_SYMBOL);
+        let asset_address = object::create_object_address(&@TestToken, ASSET_SYMBOL);
         object::address_to_object<Metadata>(asset_address)
     }
 
@@ -132,7 +132,7 @@ module RampAptos::fa_coin {
         borrow_global<ManagedFungibleAsset>(object::object_address(&asset))
     }
 
-    #[test(creator = @RampAptos)]
+    #[test(creator = @TestToken)]
     fun test_basic_flow(
         creator: &signer,
     ) acquires ManagedFungibleAsset {
@@ -153,7 +153,7 @@ module RampAptos::fa_coin {
         burn(creator, creator_address, 90);
     }
 
-    #[test(creator = @RampAptos, aaron = @0xface)]
+    #[test(creator = @TestToken, aaron = @0xface)]
     #[expected_failure(abort_code = 0x50001, location = Self)]
     fun test_permission_denied(
         creator: &signer,
