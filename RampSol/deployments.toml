@@ -1,0 +1,46 @@
+
+[sepolia]
+endpoint_url = "${SEPOLIA_RPC_URL}"
+ 
+[sepolia.address]
+weth = "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9"
+proxy = "0x782ed983eFb30FDC5bC50Ee28e94e9178D0B477d"
+implementation_v1 = "0x628142bd884E1ABaa706917397F495180DFBd28c"
+dai = "0xe46A08cA0D9891e0867F21ACe8Eaae25aF5dEb18"
+usdc = "0x29421b90E89D93f22870E312680712331f6a9DE9"
+usdt = "0x8e63fE20B16308dB52c4510E8bcb5267ce53Bb98"
+controler = "0x7f95A8495058F32073435EFf704F5CF2487d9032"
+vault = "0x90501d356586e89456Dd659515310413C49B7210"
+multisig = "${SEPOLIA_MULTISIG}"
+ 
+[sepolia.uint]
+mint_amount = 100000
+add_amount = 1000
+add_eth_amount = 0.05
+fee_percentage = 1
+ 
+[sepolia.bool]
+is_testnet = true
+use_timelock = false
+
+[hedera_testnet]
+endpoint_url = "${HEDERA_TESTNET_RPC_URL}"
+ 
+[hedera_testnet.address]
+proxy = "0x70Cd304Dc6d8C5E07cd33B7F687Ee4192d4141FF"
+implementation_v1 = "0x94a9b20771D9418cE69b557148BD9BB0762f5094"
+usdt = "0x4888D165cCB6D3E648138C17EeffA119E7Ad320c"
+multisig = "${HEDERA_PRIVATE_KEY}"
+sender="0x2e9f2728a1dea6c8a6354af451276197f0bdde11"
+vault="0x2e9f2728a1dea6c8a6354af451276197f0bdde11"
+controler="0x2e9f2728a1dea6c8a6354af451276197f0bdde11"
+ 
+[hedera_testnet.uint]
+mint_amount = 100000
+add_amount = 1000
+add_eth_amount = 0.05
+fee_percentage = 1
+ 
+[hedera_testnet.bool]
+is_testnet = true
+use_timelock = false

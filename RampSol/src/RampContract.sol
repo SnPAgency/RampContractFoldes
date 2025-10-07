@@ -16,6 +16,7 @@ import {Initializable} from "@openzeppelin-contracts-upgradeable/proxy/utils/Ini
 import {OwnableUpgradeable} from "@openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Math} from "@openzeppelin-contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin-contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20Permit} from "@openzeppelin-contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IRampContract} from "./IRampContract.sol";
 import {Errors} from "./helpers/errors.sol";
@@ -233,8 +234,6 @@ contract RampContract is
 
         IERC20 token = IERC20(asset);
         IRampContract.AssetInfo storage _assetInfo = assetInfo[asset];
-
-
         //transfer the amount of the asset from the sender to the contract
         bool retValue = token.transferFrom(sender, address(this), amount);
 
@@ -250,7 +249,7 @@ contract RampContract is
 
             uint256 amountAfterFee = amount - fee;
 
-            emit IRampContract.RampDeposit(asset, sender, amountAfterFee, medium, region, data);
+            emit IRampContract.RampDeposit(asset, sender, amountAfterFee, IERC20Metadata(asset).symbol(), medium, region, data);
         }
     }
 
@@ -285,7 +284,7 @@ contract RampContract is
             }
             _assetInfo.revenuePerAsset = newRevenue;
 
-            emit IRampContract.RampDeposit(address(0), msg.sender, amountAfterFee, medium, region, data);
+            emit IRampContract.RampDeposit(address(0), msg.sender, amountAfterFee, "NATIVE", medium, region, data);
         }
     }
 
@@ -343,7 +342,7 @@ contract RampContract is
             }
             _assetInfo.revenuePerAsset = newRevenue;
 
-            emit IRampContract.RampDeposit(asset, sender, amountAfterFee, medium, region, data);
+            emit IRampContract.RampDeposit(asset, sender, amountAfterFee, IERC20Metadata(asset).symbol(), medium, region, data);
         }
 
         else {
@@ -379,7 +378,6 @@ contract RampContract is
         if ((token.balanceOf(address(this)) - _assetInfo.revenuePerAsset) < amount) {
             revert Errors.Invalid__AssetBalance(asset, address(this));
         }
-
 
         bool retValue = token.transfer(recipient, amount);
 
