@@ -50,6 +50,7 @@ contract RampContractTestFunctionality is Test {
             address(rampToken1),
             nonOwner,
             amountAfterFee,
+            rampToken1.symbol(),
             IRampContract.OnrampMedium.Primary,
             IRampContract.Region.KEN,
             ""
@@ -82,6 +83,7 @@ contract RampContractTestFunctionality is Test {
             address(address(0)),
             nonOwner,
             amountAfterFee,
+            "NATIVE",
             IRampContract.OnrampMedium.Primary,
             IRampContract.Region.KEN,
             ""
@@ -135,6 +137,7 @@ contract RampContractTestFunctionality is Test {
             address(rampToken1),
             nonOwner,
             amountAfterFee,
+            rampToken1.symbol(),
             IRampContract.OnrampMedium.Primary,
             IRampContract.Region.KEN,
             ""

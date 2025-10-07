@@ -52,6 +52,7 @@ interface IRampContract {
         address indexed asset,
         address indexed sender,
         uint256 amount,
+        string asset_name,
         IRampContract.OnrampMedium medium,
         IRampContract.Region region,
         bytes data
