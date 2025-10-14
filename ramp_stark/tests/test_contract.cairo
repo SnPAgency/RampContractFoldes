@@ -1,6 +1,6 @@
 use starknet::ContractAddress;
-use snforge_std_deprecated::{declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait};
-use snforge_std_deprecated::{start_cheat_caller_address, stop_cheat_caller_address};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait};
+use snforge_std::{start_cheat_caller_address, stop_cheat_caller_address};
 use openzeppelin::access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait};
 use openzeppelin::security::interface::{IPausableDispatcher, IPausableDispatcherTrait};
 use ramp_stark::interfaces::ramp_interface::{IRampStackDispatcher, IRampStackDispatcherTrait};

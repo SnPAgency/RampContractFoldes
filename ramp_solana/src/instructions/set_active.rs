@@ -22,23 +22,12 @@ pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiv
 
     // Set the active state
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
-
-    // Check if the ramp account is initialized
-    if !ramp_state.is_initialized {
-        msg!("Ramp account is not initialized");
-        return Err(RampError::UninitializedAccount.into());
-    }
+    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
 
     // Check owner authorization
     if !owner_account.is_signer {
         msg!("Owner account must be signer");
         return Err(RampError::InvalidSigner.into());
-    }
-
-    if ramp_state.owner != *owner_account.key {
-        msg!("Only owner can change active state");
-        return Err(RampError::Unauthorized.into());
     }
 
     // Update the active state

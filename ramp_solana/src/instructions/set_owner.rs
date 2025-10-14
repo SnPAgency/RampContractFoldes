@@ -21,23 +21,12 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
 
     // Deserialize the RampState
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
-
-    // Check if the ramp account is initialized
-    if !ramp_state.is_initialized {
-        msg!("Ramp account is not initialized");
-        return Err(RampError::UninitializedAccount.into());
-    }
+    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
 
     // Check current owner authorization
     if !current_owner_account.is_signer {
         msg!("Current owner account must be signer");
         return Err(RampError::InvalidSigner.into());
-    }
-
-    if ramp_state.owner != *current_owner_account.key {
-        msg!("Only current owner can change ownership");
-        return Err(RampError::Unauthorized.into());
     }
 
     // Set the new owner

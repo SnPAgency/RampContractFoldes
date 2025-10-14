@@ -33,7 +33,7 @@ pub fn initialize_program(
         return Err(RampError::InvalidInstruction.into());
     }
 
-    let account_space = 8 + RampState::get_space_with_assets(args.max_assets);
+    let account_space = borsh::to_vec(&RampState::default()).unwrap().len();
 
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
@@ -60,7 +60,6 @@ pub fn initialize_program(
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state = RampState::default();
-    ramp_state.is_initialized = true;
     ramp_state.owner = *payer_account.key;
     ramp_state.vault_address = args.vault_address;
     

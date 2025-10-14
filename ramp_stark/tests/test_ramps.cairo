@@ -1,10 +1,11 @@
 use ramp_stark::interfaces::ramp_interface::{OnrampMedium, Region};
 use starknet::ContractAddress;
-use snforge_std_deprecated::{declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait};
-use snforge_std_deprecated::{start_cheat_caller_address, stop_cheat_caller_address};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, spy_events, EventSpyAssertionsTrait};
+use snforge_std::{start_cheat_caller_address, stop_cheat_caller_address};
 use ramp_stark::interfaces::ramp_interface::{IRampStackDispatcher, IRampStackDispatcherTrait};
 use ramp_stark::RampStark;
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+use openzeppelin::token::erc20::interface::{IERC20MetadataDispatcher, IERC20MetadataDispatcherTrait};
 
 fn OWNER() -> ContractAddress {
     'OWNER'.try_into().unwrap()
@@ -104,6 +105,7 @@ fn test_onramp() {
                         asset: token,
                         amount: (1000 - fee),
                         sender: USER_1(),
+                        asset_name: IERC20MetadataDispatcher {contract_address: ramp_token.contract_address}.symbol(),
                         medium: OnrampMedium::Primary,
                         region: Region::NGA,
                         data: ""

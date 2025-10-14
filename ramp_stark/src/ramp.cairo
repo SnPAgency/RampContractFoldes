@@ -426,6 +426,22 @@ pub mod RampStark {
             );
         }
 
+        ///
+        /// @dev function fund_asset(ContractAddress, u256) 
+        /// @dev funds an asset in the contract.
+        /// @param asset The address of the asset to be funded.
+        /// @param amount The amount of the asset to be funded.
+        /// @notice This function can only be called by the owner of the contract.
+        /// @notice This function transfers the amount of the asset from the caller to the contract.
+        /// @notice This function emits the AssetFunded event to indicate that the asset balance in 
+        /// the contract has been funded.
+        /// 
+        fn fund_asset(ref self: ContractState, asset: ContractAddress, amount: u256) {
+            self.ownable.assert_only_owner();
+            let token = IERC20Dispatcher { contract_address: asset };
+            assert(token.transfer_from(get_caller_address(), get_contract_address(), amount), RampErrors::TOKEN_DEPOSIT_FAILED);
+        }
+
         /// 
         /// @dev function get_asset_revenue(ContractAddress) 
         /// @dev gets the revenue of an asset.

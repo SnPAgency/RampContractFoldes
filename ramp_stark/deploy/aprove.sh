@@ -1,8 +1,8 @@
 #!/bin/bash
 
-sncast --account=test \
+sncast --account=phydy \
     invoke \
-    --contract-address=0x03e68531eea5deec8a67b47f0330533260de3632ab21d6b0fad5a77a3c14dc58 \
+    --contract-address=0x049a388016755daf4258ba1f03092f3bd035abdf00904252c24061f93ddf680c \
     --function "approve" \
-    --arguments '0x0076a2a9249d67fd7ef5e11297eab406eec8b881f29f7a06a37ea91d2c4411f1, 100' \
+    --arguments '0x02461084678393887c078d3bfcbb94a9afed63284a69145e511786e0a652f0f7, 10000' \
     --network sepolia

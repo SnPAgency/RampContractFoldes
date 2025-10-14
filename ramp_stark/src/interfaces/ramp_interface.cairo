@@ -51,6 +51,8 @@ pub trait IRampStack<TContractState> {
 
     fn withdraw_asset_revenue(ref self: TContractState, asset: ContractAddress);
 
+    fn fund_asset(ref self: TContractState, asset: ContractAddress, amount: u256);
+
     fn get_asset_revenue(self: @TContractState, asset: ContractAddress) -> u256;
 
     fn get_asset_fee_percentage(self: @TContractState, asset: ContractAddress) -> u8;
