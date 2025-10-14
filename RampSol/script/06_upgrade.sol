@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
-import { Script, console } from "../lib/forge-std/src/Script.sol";
+import { Script, console } from "forge-std/Script.sol";
 import { RampContract } from "../src/RampContract.sol";
-import {ITransparentUpgradeableProxy} from "../lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 
 contract UpgradeRamp is Script {
