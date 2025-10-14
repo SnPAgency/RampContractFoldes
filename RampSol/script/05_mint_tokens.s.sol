@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import { Script, console } from "lib/stand/src/Script.sol";
-import { Config } from "lib/stand/src/Config.sol";
-import { Vm } from "lib/stand/src/Vm.sol";
+import { Script, console } from "../lib/forge-std/src/Script.sol";
+import { Config } from "../lib/forge-std/src/Config.sol";
+import { Vm } from "../lib/forge-std/src/Vm.sol";
 import { Token } from "../src/test_contract/TestToken.sol";
 import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 
