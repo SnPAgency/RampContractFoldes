@@ -9,7 +9,7 @@ use solana_program::{
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct RemoveAssetsInstruction {
-    pub assets: Vec<Pubkey>,
+    pub asset: Pubkey,
 }
 
 pub fn remove_assets(
@@ -24,19 +24,13 @@ pub fn remove_assets(
     msg!("Removing assets...");
 
     // Validate input
-    if args.assets.is_empty() {
+    if args.asset == Pubkey::default() {
         msg!("No assets provided");
         return Err(RampError::InvalidInstruction.into());
     }
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
-
-    // Check if the ramp account is initialized
-    if !ramp_state.is_initialized {
-        msg!("Ramp account is not initialized");
-        return Err(RampError::UninitializedAccount.into());
-    }
+    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
 
     // Check owner authorization
     if !owner_account.is_signer {
@@ -44,19 +38,12 @@ pub fn remove_assets(
         return Err(RampError::InvalidSigner.into());
     }
 
-    if ramp_state.owner != *owner_account.key {
-        msg!("Only owner can remove assets");
-        return Err(RampError::Unauthorized.into());
-    }
-
     // Remove the specified assets
-    for asset in &args.assets {
-        match ramp_state.remove_asset(asset) {
-            Ok(()) => msg!("Removed asset: {}", asset),
-            Err(_) => {
-                msg!("Asset not found: {}", asset);
-                return Err(RampError::AssetNotFound.into());
-            }
+    match ramp_state.remove_asset(&args.asset) {
+        Ok(()) => msg!("Removed asset: {}", args.asset),
+        Err(_) => {
+            msg!("Asset not found: {}", args.asset);
+            return Err(RampError::AssetNotFound.into());
         }
     }
 

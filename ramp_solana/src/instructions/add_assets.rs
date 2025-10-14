@@ -25,10 +25,10 @@ pub fn add_assets(
     msg!("Adding assets...");
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = RampState::try_from_slice(&ramp_data)?;
+    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
 
-    if !ramp_state.is_initialized && ramp_state.is_active && owner_account.is_signer && ramp_state.owner == *owner_account.key {
-        msg!("Ramp account is not initialized");
+    if  !ramp_state.is_active && !owner_account.is_signer {
+        msg!("Ramp account is not active or owner is not signer");
         return Err(RampError::UninitializedAccount.into());
     }
 

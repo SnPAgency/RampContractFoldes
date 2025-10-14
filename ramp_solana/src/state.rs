@@ -1,22 +1,30 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy)]
 pub struct AssetEntry {
     pub asset: Pubkey,
     pub info: AssetInfo,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+impl Default for AssetEntry {
+    fn default() -> Self {
+        Self {
+            asset: Pubkey::default(),
+            info: AssetInfo::new(0),
+        }
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy)]
 pub struct RampState {
-    pub is_initialized: bool,
     pub owner: Pubkey,
     pub is_active: bool,
     pub vault_address: Pubkey,
-    pub asset_entries: Vec<AssetEntry>,
+    pub asset_entries: [AssetEntry; 10],
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone, Copy)]
 pub struct AssetInfo {
     pub asset_fee_percentage: u128,
     pub asset_revenue: u128,
@@ -46,17 +54,19 @@ impl AssetInfo {
 impl Default for RampState {
     fn default() -> Self {
         Self {
-            is_initialized: false,
             owner: Pubkey::default(),
             is_active: false,
             vault_address: Pubkey::default(),
-            asset_entries: Vec::new(),
+            asset_entries: [AssetEntry::default(); 10],
         }
     }
 }
 
 impl RampState {
     pub fn is_allowed_asset(&self, asset: &Pubkey) -> bool {
+        if asset == &Pubkey::default() {
+            return false;
+        }
         self.asset_entries.iter().any(|entry| entry.asset == *asset)
     }
 
@@ -70,34 +80,33 @@ impl RampState {
         self.asset_entries.iter().map(|entry| entry.asset).collect()
     }
 
-    pub fn get_space_with_assets(max_assets: usize) -> usize {
-        // Very generous space calculation for Solana compatibility
-        // Account for discriminator (8) + all fields with padding
-        let discriminator = 8;
-        let base_size = 1 + 32 + 1 + 32 + 4; // is_initialized + owner + is_active + vault_address + vec len
-        let asset_entry_size = 32 + 32; // Pubkey (32) + AssetInfo (u128 + u128 = 32)
-        let entries_size = max_assets * asset_entry_size;
-        //let generous_padding = 500; // Very generous padding for serialization overhead
-        discriminator + base_size + entries_size// + generous_padding
-    }
-
     pub fn add_asset(&mut self, asset: Pubkey, fee_percentage: u128) -> Result<(), &'static str> {
         if self.is_allowed_asset(&asset) {
             return Err("Asset already exists");
         }
-        self.asset_entries.push(AssetEntry {
+        let asset_entry = AssetEntry {
             asset,
             info: AssetInfo::new(fee_percentage),
-        });
+        };
+        let asset_check_result = self.asset_entries.iter_mut().find(|entry| entry.asset == asset);
+        if asset_check_result.is_some() {
+            return Err("Asset already exists");
+        }
+
+        let empty_slot = self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default());
+        match empty_slot {
+            Some(entry) => {
+                *entry = asset_entry;
+            }
+            None => {
+                return Err("No empty slot found");
+            }
+        }
         Ok(())
     }
 
     pub fn remove_asset(&mut self, asset: &Pubkey) -> Result<(), &'static str> {
-        let initial_len = self.asset_entries.len();
-        self.asset_entries.retain(|entry| entry.asset != *asset);
-        if self.asset_entries.len() == initial_len {
-            return Err("Asset not found");
-        }
+        self.asset_entries.iter_mut().find(|entry| entry.asset == *asset).map(|entry| entry.asset = Pubkey::default());
         Ok(())
     }
 }
