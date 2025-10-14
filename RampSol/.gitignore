@@ -15,4 +15,3 @@ docs/
 # Dotenv file
 .env
 /src/contracts.txt
-lib/stand
