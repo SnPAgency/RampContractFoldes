@@ -11,9 +11,6 @@ viaIR = true
 ast = true
 ffi = true
 fs_permissions = [ {access = "read-write",  path ="./"}]
-remappings = [
-    "@forge-std = home/phydy/Work/Personal/forge-std/src",
-]
 
 [rpc_endpoints]
 localhost = "http://localhost:8545"
