@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import { Script, console } from "lib/stand/src/Script.sol";
-import { Config } from "lib/stand/src/Config.sol";
-import { Vm } from "lib/stand/src/Vm.sol";
+import { Script, console } from "forge-std/Script.sol";
+import { Config } from "forge-std/Config.sol";
+import { Vm } from "forge-std/Vm.sol";
 import { Token } from "../src/test_contract/TestToken.sol";
-import {IERC20Metadata} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
+import {IERC20Metadata} from "@openzeppelin-contracts/interfaces/IERC20Metadata.sol";
 
 interface IERC20 is IERC20Metadata {
     function mint(address to, uint256 amount) external;
