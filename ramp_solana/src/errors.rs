@@ -41,6 +41,9 @@ pub enum RampError {
 
     #[error("Program is not active")]
     ProgramNotActive,
+
+    #[error("Transfer failed")]
+    TransferFailed,
 }
 
 impl From<RampError> for ProgramError {

@@ -20,8 +20,10 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     msg!("Setting new owner...");
 
     // Deserialize the RampState
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
+    let mut ramp_state: RampState = {
+        let ramp_data = ramp_account.try_borrow_data()?;
+        borsh::from_slice(&ramp_data)
+    }?;
 
     // Check current owner authorization
     if !current_owner_account.is_signer {
@@ -30,8 +32,8 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     }
 
     // Set the new owner
-    ramp_state.owner = args.new_owner;
-
+    ramp_state.set_new_owner(args.new_owner);
+    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     // Clear the account data first
     ramp_data.fill(0);
     
@@ -47,7 +49,6 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     }
     
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");
 
     msg!("Ramp account owner set to {}", args.new_owner);
     Ok(())

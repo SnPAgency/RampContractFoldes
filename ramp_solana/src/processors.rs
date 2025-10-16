@@ -1,16 +1,20 @@
 use {
     crate::instructions::{
             add_assets,
+            initialize_program,
+            off_ramp_deposit,
+            onramp_withdraw,
             remove_assets,
             set_active,
             set_owner,
-            initialize_program,
             token_transfers,
             AddAssetsInstruction,
-            RemoveAssetsInstruction,
-            SetOwnerInstruction,
-            SetActiveInstruction,
             InitializeProgramInstruction,
+            OffRampDepositInstruction,
+            OnRampWithdrawInstruction,
+            RemoveAssetsInstruction,
+            SetActiveInstruction,
+            SetOwnerInstruction,
             TransferTokensArgs
         },
         borsh::{BorshDeserialize, BorshSerialize},
@@ -33,6 +37,8 @@ pub enum Instruction {
     AddAssets(AddAssetsInstruction),
     InitializeProgram(InitializeProgramInstruction),
     TransferTokens(TransferTokensArgs),
+    OffRampDeposit(OffRampDepositInstruction),
+    OnRampWithdraw(OnRampWithdrawInstruction)
 }
 
 pub fn process_instruction(
@@ -43,11 +49,57 @@ pub fn process_instruction(
     let instruction = RampInstruction::try_from_slice(instruction_data)?;
 
     match instruction.instruction {
-        Instruction::SetActive(args) => set_active::set_active(program_id, accounts, args),
-        Instruction::RemoveAssets(args) => remove_assets::remove_assets(program_id, accounts, args),
-        Instruction::SetOwner(args) => set_owner::set_owner(program_id, accounts, args),
-        Instruction::AddAssets(args) => add_assets::add_assets(program_id, accounts, args),
-        Instruction::InitializeProgram(args) => initialize_program::initialize_program(program_id, accounts, args),
-        Instruction::TransferTokens(args) => token_transfers::transfer_tokens(accounts, args),
+        Instruction::SetActive(args) => {
+            set_active::set_active(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::RemoveAssets(args) => {
+            remove_assets::remove_assets(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::SetOwner(args) => {
+            set_owner::set_owner(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::AddAssets(args) => {
+            add_assets::add_assets(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::InitializeProgram(args) => {
+            initialize_program::initialize_program(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::TransferTokens(args) => {
+            token_transfers::transfer_tokens(accounts, args)
+        },
+        Instruction::OffRampDeposit(args) => {
+            off_ramp_deposit::off_ramp_deposit(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::OnRampWithdraw(args) => {
+            onramp_withdraw::onramp_withdraw(
+                program_id,
+                accounts,
+                args
+            )
+        },
     }
 }

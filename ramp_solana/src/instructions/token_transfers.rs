@@ -18,13 +18,21 @@ pub struct TransferTokensArgs {
 pub fn transfer_tokens(accounts: &[AccountInfo], args: TransferTokensArgs) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
+    //token account
     let mint_account = next_account_info(accounts_iter)?;
+    //owner token account
     let from_associated_token_account = next_account_info(accounts_iter)?;
+    //recipient token account
     let to_associated_token_account = next_account_info(accounts_iter)?;
+    //owner of the tokens
     let owner = next_account_info(accounts_iter)?;
+    //recipient of the tokens
     let recipient = next_account_info(accounts_iter)?;
+    //payer of the transaction
     let payer = next_account_info(accounts_iter)?;
+    //system program
     let system_program = next_account_info(accounts_iter)?;
+    //token program
     let token_program = next_account_info(accounts_iter)?;
     let associated_token_program = next_account_info(accounts_iter)?;
 

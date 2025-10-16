@@ -13,6 +13,7 @@ spl-token = { version = "4.0.0", features = [ "no-entrypoint" ] }
 spl-associated-token-account = { version = "2.3.0", features = [ "no-entrypoint" ] }
 thiserror = "2.0.12"
 
+
 [dev-dependencies]
 solana-program-test = "1.18.26"
 solana-sdk = "1.18.26"

@@ -13,7 +13,6 @@ use solana_program::{
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct InitializeProgramInstruction {
-    pub max_assets: usize,
     pub vault_address: Pubkey,
 }
 
@@ -26,12 +25,6 @@ pub fn initialize_program(
     let ramp_account = next_account_info(account_info_iter)?;
     let payer_account = next_account_info(account_info_iter)?;
     let system_program_account = next_account_info(account_info_iter)?;
-
-    // Validate max_assets parameter
-    if args.max_assets < 1 || args.max_assets > 10 {
-        msg!("Invalid max_assets: must be between 1 and 10");
-        return Err(RampError::InvalidInstruction.into());
-    }
 
     let account_space = borsh::to_vec(&RampState::default()).unwrap().len();
 
