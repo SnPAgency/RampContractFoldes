@@ -222,6 +222,8 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           targets: wasm32v1-none
+          toolchain: 1.90.0
+          components: rustfmt, clippy
         
       - name: Install Stellar CLI (cached)
         run: |
