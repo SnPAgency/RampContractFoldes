@@ -21,8 +21,11 @@ pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiv
     msg!("Setting active state to {}...", args.is_active);
 
     // Set the active state
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
+    //let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+    let mut ramp_state: RampState  = {
+        let ramp_data = ramp_account.try_borrow_data()?;
+        borsh::from_slice(&ramp_data)?
+    };
 
     // Check owner authorization
     if !owner_account.is_signer {
@@ -31,7 +34,10 @@ pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiv
     }
 
     // Update the active state
-    ramp_state.is_active = args.is_active;
+    ramp_state.set_active(args.is_active);
+
+    // Now borrow mutably to update the state
+    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
 
     // Clear the account data first
     ramp_data.fill(0);
@@ -48,7 +54,6 @@ pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiv
     }
     
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");
     
     msg!("Ramp account active state set to {}", args.is_active);
     Ok(())

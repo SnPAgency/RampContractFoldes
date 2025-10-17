@@ -16,6 +16,13 @@ impl Default for AssetEntry {
     }
 }
 
+impl AssetEntry {
+    pub fn remove(&mut self) {
+        self.asset = Pubkey::default();
+        self.info = AssetInfo::new(0);
+    }
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy)]
 pub struct RampState {
     pub owner: Pubkey,
@@ -46,6 +53,7 @@ impl AssetInfo {
         self.asset_fee_percentage
     }
 
+    #[cfg(test)]
     pub fn get_revenue(&self) -> u128 {
         self.asset_revenue
     }
@@ -70,14 +78,29 @@ impl RampState {
         self.asset_entries.iter().any(|entry| entry.asset == *asset)
     }
 
-    pub fn get_asset_info(&self, asset: &Pubkey) -> Option<&AssetInfo> {
+    pub fn get_asset_info(&mut self, asset: &Pubkey) -> Option<&mut AssetInfo> {
+        self.asset_entries.iter_mut()
+            .find(|entry| entry.asset == *asset)
+            .map(|entry| &mut entry.info)
+    }
+
+    pub fn get_asset_info_ref(&self, asset: &Pubkey) -> Option<&AssetInfo> {
         self.asset_entries.iter()
             .find(|entry| entry.asset == *asset)
             .map(|entry| &entry.info)
     }
 
+    #[cfg(test)]
     pub fn get_assets(&self) -> Vec<Pubkey> {
         self.asset_entries.iter().map(|entry| entry.asset).collect()
+    }
+
+    pub fn set_active(&mut self, is_active: bool) {
+        self.is_active = is_active;
+    }
+
+    pub fn set_new_owner(&mut self, owner: Pubkey) {
+        self.owner = owner;
     }
 
     pub fn add_asset(&mut self, asset: Pubkey, fee_percentage: u128) -> Result<(), &'static str> {
@@ -88,13 +111,12 @@ impl RampState {
             asset,
             info: AssetInfo::new(fee_percentage),
         };
-        let asset_check_result = self.asset_entries.iter_mut().find(|entry| entry.asset == asset);
-        if asset_check_result.is_some() {
+        if self.asset_entries.iter_mut().find(|entry| entry.asset == asset).is_some() {
             return Err("Asset already exists");
         }
 
-        let empty_slot = self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default());
-        match empty_slot {
+        //let empty_slot = self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default());
+        match self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default()) {
             Some(entry) => {
                 *entry = asset_entry;
             }
@@ -106,7 +128,9 @@ impl RampState {
     }
 
     pub fn remove_asset(&mut self, asset: &Pubkey) -> Result<(), &'static str> {
-        self.asset_entries.iter_mut().find(|entry| entry.asset == *asset).map(|entry| entry.asset = Pubkey::default());
+        self.asset_entries.iter_mut().find(|entry| entry.asset == *asset).map(|entry| {
+            entry.remove();
+        });
         Ok(())
     }
 }
