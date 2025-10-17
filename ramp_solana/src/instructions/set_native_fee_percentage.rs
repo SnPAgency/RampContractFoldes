@@ -4,34 +4,37 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, 
     msg, 
-    pubkey::Pubkey
+    pubkey::Pubkey,
 };
 
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct SetOwnerInstruction {
-    pub new_owner: Pubkey,
+pub struct SetNativeFeePercentageInstruction {
+    pub fee_percentage: u128,
 }
 
-pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerInstruction) -> ProgramResult {
+pub fn set_native_fee_percentage(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetNativeFeePercentageInstruction) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
-    let current_owner_account = next_account_info(account_info_iter)?;
-
-    msg!("Setting new owner...");
-
+    let owner_account = next_account_info(account_info_iter)?;
+    
+    msg!("Setting native fee percentage to {}...", args.fee_percentage);
+    
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
-        borsh::from_slice(&ramp_data)
-    }?;
+        borsh::from_slice(&ramp_data)?
+    };
 
-    if !current_owner_account.is_signer {
-        msg!("Current owner account must be signer");
+    if !owner_account.is_signer && &ramp_state.owner != owner_account.key {
+        msg!("Owner account must be signer");
         return Err(RampError::InvalidSigner.into());
     }
-
-    ramp_state.set_new_owner(args.new_owner);
+    ramp_state.set_native_fee_percentage(args.fee_percentage);
+    
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+    
     ramp_data.fill(0);
+    
     let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
         msg!("Serialization failed: {:?}", e);
         RampError::InvalidAccountState
@@ -43,7 +46,7 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     }
     
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-
-    msg!("Ramp account owner set to {}", args.new_owner);
+    
+    msg!("Native fee percentage set to {}", args.fee_percentage);
     Ok(())
 }

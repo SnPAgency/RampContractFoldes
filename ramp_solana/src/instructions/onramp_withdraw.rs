@@ -24,16 +24,19 @@ pub fn onramp_withdraw(
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let asset_mint_account = next_account_info(account_info_iter)?;
-    let asset_receiver_account = next_account_info(account_info_iter)?;
+    let ramp_owner = next_account_info(account_info_iter)?;
     let asset_receiver_token_account = next_account_info(account_info_iter)?;
+    let ramp_token_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     
     msg!("On-ramping withdraw...");
 
-    let ramp_data = ramp_account.try_borrow_data()?;
-    let ramp_state: RampState = borsh::from_slice(&ramp_data)?;
+    let ramp_state: RampState = {
+        let ramp_data = ramp_account.try_borrow_data()?;
+        RampState::try_from_slice(&ramp_data)?
+    };
 
-    if !ramp_state.is_active {
+    if !ramp_state.is_active && ramp_owner.key != &ramp_state.owner {
         msg!("Ramp account is not active or owner is not signer");
         return Err(RampError::UninitializedAccount.into());
     }
@@ -57,8 +60,8 @@ pub fn onramp_withdraw(
             let transfer_result = invoke(
                 &transfer_instructions,
                 &[
-                    ramp_account.clone(),
-                    asset_receiver_account.clone(),
+                    ramp_token_account.clone(),
+                    asset_receiver_token_account.clone(),
                     ramp_account.clone(),
                     token_program.clone(),
                 ],

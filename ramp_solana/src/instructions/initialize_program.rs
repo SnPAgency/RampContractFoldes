@@ -14,6 +14,7 @@ use solana_program::{
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct InitializeProgramInstruction {
     pub vault_address: Pubkey,
+    pub native_fee_percentage: u128,
 }
 
 pub fn initialize_program(
@@ -55,11 +56,9 @@ pub fn initialize_program(
     let mut ramp_state = RampState::default();
     ramp_state.owner = *payer_account.key;
     ramp_state.vault_address = args.vault_address;
+    ramp_state.native_fee_percentage = args.native_fee_percentage;
     
-    // Clear the account data first
     ramp_data.fill(0);
-    
-    // Serialize the initial state to the account data
     let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
         msg!("Serialization failed: {:?}", e);
         RampError::InvalidAccountState
@@ -69,7 +68,6 @@ pub fn initialize_program(
         msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
         return Err(RampError::InvalidAccountState.into());
     }
-    
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
     msg!("State serialized successfully");
 

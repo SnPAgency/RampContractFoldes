@@ -15,6 +15,7 @@ pub struct OffRampDepositInstruction {
     pub amount: u64,
     pub region: Region,
     pub medium: Medium,
+    pub data: Vec<u8>,
 }
 
 pub fn off_ramp_deposit(
@@ -27,16 +28,20 @@ pub fn off_ramp_deposit(
     let asset_mint_account = next_account_info(account_info_iter)?;
     let asset_owner_account = next_account_info(account_info_iter)?;
     let asset_owner_token_account = next_account_info(account_info_iter)?;
+    let ramp_token_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     
     msg!("Off-ramping deposit...");
 
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    let mut ramp_state: RampState = borsh::from_slice(&ramp_data)?;
+    //let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+    let mut ramp_state: RampState = {
+        let ramp_data = ramp_account.try_borrow_data()?;
+        borsh::from_slice(&ramp_data)?
+    };
 
     if !ramp_state.is_active {
         msg!("Ramp account is not active or owner is not signer");
-        return Err(RampError::UninitializedAccount.into());
+        return Err(RampError::ProgramNotActive.into());
     }
 
     match ramp_state.get_asset_info(asset_mint_account.key) {
@@ -66,8 +71,8 @@ pub fn off_ramp_deposit(
     let transfer_result = invoke(
         &transfer_instructions,
         &[
-            asset_owner_account.clone(),
-            ramp_account.clone(),
+            asset_owner_token_account.clone(),
+            ramp_token_account.clone(),
             asset_owner_account.clone(),
             token_program.clone(),
         ],
@@ -78,6 +83,7 @@ pub fn off_ramp_deposit(
         return Err(RampError::TransferFailed.into());
     }
 
+    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     // Clear the account data first
     ramp_data.fill(0);
     
