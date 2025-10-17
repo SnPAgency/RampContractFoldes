@@ -154,45 +154,52 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.modified, 'ramp_solana/') || github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@nightly
-    - name: Install Solana CLI
-      run: |
-        sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
-        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-        source ~/.bashrc || true
-        
-        # Verify installation
-        echo "Verifying Solana CLI installation..."
-        which solana || echo "solana not found in PATH"
-        solana --version || echo "solana version check failed"
-        
-        # Check if cargo test-sbf is available
-        echo "Checking cargo test-sbf availability..."
-        cargo --list | grep test-sbf || echo "cargo test-sbf not found"
-        
-        # List all available cargo commands for debugging
-        echo "Available cargo commands:"
-        cargo --list | head -20
+      # ✅ Correct Rust toolchain setup (explicit version)
+      - name: Install Rust 1.90.0
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.90.0
+          components: rustfmt, clippy
 
-    - name: Cache Cargo dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          ramp_solana/target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # ✅ Install Solana CLI (using newer version with updated Rust toolchain)
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 
-    - name: Build and Test ramp_solana
-      run: |
-        cd ramp_solana
-        cargo test-sbf -- --nocapture
+          echo "Verifying Solana CLI installation..."
+          solana --version
+
+      # ✅ Cache Cargo dependencies
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ramp_solana/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # ✅ Build and test Solana program
+      - name: Build and Test ramp_solana
+        run: | 
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          
+          # Verify Rust version
+          rustc --version
+          cargo --version
+          solana --version
+          
+          # Ensure cargo test-sbf uses the correct Rust toolchain
+          cd ramp_solana
+          cargo build-sbf
+          cargo test-sbf -- --nocapture
+
 
   # Job for Stellar Soroban contracts
   stellar:
@@ -212,9 +219,11 @@ jobs:
             ${{ runner.os }}-stellar-cargo-
             
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
           targets: wasm32v1-none
+          toolchain: 1.90.0
+          components: rustfmt, clippy
         
       - name: Install Stellar CLI (cached)
         run: |

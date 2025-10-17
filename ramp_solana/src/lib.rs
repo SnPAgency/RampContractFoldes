@@ -154,6 +154,7 @@ mod tests {
                 instruction: processors::Instruction::InitializeProgram(
                     InitializeProgramInstruction {
                         vault_address,
+                        native_fee_percentage: 10,
                     }
                 ),
             },
@@ -509,6 +510,178 @@ mod tests {
     }
 
     /**
+     * Test Set native fee
+     */
+
+    #[tokio::test]
+    async fn test_set_native_fee_percentage() {
+        let (
+            mut ctx,
+            program_id,
+            _asset_mint,
+            ramp_keypair,
+        ) = setup_program().await;
+
+        let vault_address = Pubkey::new_unique();
+
+        // Initialize the program first
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            vault_address,
+        ).await.expect("Initialization should succeed");
+
+        println!("Testing set native fee percentage...");
+
+        let set_native_fee_percentage_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetNativeFeePercentage(
+                    SetNativeFeePercentageInstruction {
+                        fee_percentage: 100,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_native_fee_percentage_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set native fee percentage should succeed: {:?}", result.err());
+
+        // Verify the state
+        let ramp_state = get_ramp_state(&mut ctx.banks_client, ramp_keypair.pubkey()).await
+            .expect("Failed to get ramp state");
+
+        assert_eq!(ramp_state.native_fee_percentage, 100, "Native fee percentage should be updated");
+        println!("Set native fee percentage test passed!");
+    }
+
+    /**
+     * Set Asset Fee
+     */
+
+    #[tokio::test]
+    async fn test_set_asset_fee() {
+        let (
+            mut ctx,
+            program_id,
+            asset_mint,
+            ramp_keypair,
+        ) = setup_program().await;
+
+        let vault_address = Pubkey::new_unique();
+
+        // Initialize the program first
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            vault_address,
+        ).await.expect("Initialization should succeed");
+
+        // Set active first
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let set_active_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetActive(
+                    SetActiveInstruction {
+                        is_active: true,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_active_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set active should succeed");
+
+        // Add the asset first
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let owner_token_account = get_associated_token_address(&ctx.payer.pubkey(), &asset_mint.pubkey());
+        let ramp_token_account = get_associated_token_address(&ramp_keypair.pubkey(), &asset_mint.pubkey());
+
+        let add_assets_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::AddAssets(
+                    AddAssetsInstruction {
+                        initial_amount: 1000,
+                        fee_percentage: 50, // Initial fee
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(asset_mint.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[add_assets_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Add assets should succeed");
+
+        println!("Testing set asset fee...");
+
+        // Now set the asset fee
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let set_asset_fee_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetAssetFee(
+                    SetAssetFeeInstruction {
+                        asset_mint: asset_mint.pubkey(),
+                        fee_percentage: 100,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_asset_fee_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set asset fee should succeed: {:?}", result.err());
+
+        let ramp_state = get_ramp_state(&mut ctx.banks_client, ramp_keypair.pubkey()).await
+            .expect("Failed to get ramp state");
+
+        let asset_info = ramp_state.get_asset_info_ref(&asset_mint.pubkey())
+            .expect("Asset should exist");
+        assert_eq!(asset_info.get_fee_percentage(), 100, "Asset fee percentage should be updated to 100");
+        println!("Set asset fee test passed!");
+    }
+
+    /**
      * Test set owner
      */
     #[tokio::test]
@@ -545,8 +718,8 @@ mod tests {
                 ),
             },
             vec![
-                AccountMeta::new(ramp_keypair.pubkey(), false), // Ramp account doesn't need to sign
-                AccountMeta::new(ctx.payer.pubkey(), true), // Current owner must sign
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
             ],
         );
 
@@ -557,7 +730,6 @@ mod tests {
 
         assert!(result.is_ok(), "Set owner should succeed: {:?}", result.err());
 
-        // Verify the state
         let ramp_state = get_ramp_state(&mut ctx.banks_client, ramp_keypair.pubkey()).await
             .expect("Failed to get ramp state");
 
@@ -604,12 +776,12 @@ mod tests {
             vec![
                 AccountMeta::new(ramp_keypair.pubkey(), false),
                 AccountMeta::new(asset_mint.pubkey(), false),
-                AccountMeta::new(ctx.payer.pubkey(), true), // Owner must sign
+                AccountMeta::new(ctx.payer.pubkey(), true),
                 AccountMeta::new_readonly(spl_token::id(), false),
-                AccountMeta::new_readonly(system_program::id(), false), // System program
-                AccountMeta::new_readonly(spl_associated_token_account::id(), false), // Associated token program
-                AccountMeta::new(owner_token_account, false), // Owner's token account
-                AccountMeta::new(ramp_token_account, false), // Ramp's token account
+                AccountMeta::new_readonly(system_program::id(), false),
+                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
             ],
         );
 
@@ -619,5 +791,378 @@ mod tests {
         let result = ctx.banks_client.process_transaction(transaction).await;
         assert!(result.is_err(), "Add assets with invalid fee should fail");
         println!("Correctly rejected invalid fee percentage");
+    }
+
+    /**
+     * Test off_ramp_deposit
+     * 
+     * 
+     */
+
+    #[tokio::test]
+    async fn test_off_ramp_deposit() {
+        // initialize program
+        let (mut ctx, program_id, asset_mint, ramp_keypair) = setup_program().await;
+        let vault_address = Pubkey::new_unique();
+
+        // Initialize the program first
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            vault_address,
+        ).await.expect("Initialization should succeed");
+
+        // set active
+        let set_active_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetActive(
+                    SetActiveInstruction {
+                        is_active: true,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_active_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set active should succeed");
+        println!("Set active test passed!");
+
+        let fee_percentage = 100;
+        let initial_amount = 100;
+        
+        // Get associated token addresses
+        let owner_token_account = get_associated_token_address(&ctx.payer.pubkey(), &asset_mint.pubkey());
+        let ramp_token_account = get_associated_token_address(&ramp_keypair.pubkey(), &asset_mint.pubkey());
+        // add assets
+        let add_assets_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::AddAssets(
+                    AddAssetsInstruction {
+                        fee_percentage,
+                        initial_amount,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(asset_mint.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[add_assets_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Add assets should succeed");
+        println!("Add assets test passed!");
+
+        // off ramp deposit (ramp ATA is created by add_assets)
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let off_ramp_withdraw_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::OffRampDeposit(
+                    OffRampDepositInstruction {
+                        amount: 100,
+                        region: models::Region::KEN,
+                        medium: models::Medium::Primary,
+                        data: vec![],
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(asset_mint.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
+                AccountMeta::new_readonly(spl_token::id(), false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[off_ramp_withdraw_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Off ramp withdraw should succeed: {:?}", result.err());
+        println!("Off ramp withdraw test passed!");
+        
+    }
+
+    #[tokio::test]
+    async fn test_on_ramp_withdraw() {
+        // initialize program
+        let (mut ctx, program_id, asset_mint, ramp_keypair) = setup_program().await;
+        let vault_address = Pubkey::new_unique();
+
+        // Initialize the program first
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            vault_address,
+        ).await.expect("Initialization should succeed");
+
+        // set active
+        let set_active_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetActive(
+                    SetActiveInstruction {
+                        is_active: true,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_active_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set active should succeed");
+        println!("Set active test passed!");
+
+        // add assets
+        let owner_token_account = get_associated_token_address(&ctx.payer.pubkey(), &asset_mint.pubkey());
+        let ramp_token_account = get_associated_token_address(&ramp_keypair.pubkey(), &asset_mint.pubkey());
+
+        let add_assets_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::AddAssets(
+                    AddAssetsInstruction {
+                        fee_percentage: 100,
+                        initial_amount: 100,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(asset_mint.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+                AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[add_assets_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Add assets should succeed");
+        println!("Add assets test passed!");
+
+        // on ramp withdraw
+        let on_ramp_withdraw_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::OnRampWithdraw(
+                    OnRampWithdrawInstruction {
+                        amount: 100,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(asset_mint.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new(owner_token_account, false),
+                AccountMeta::new(ramp_token_account, false),
+                AccountMeta::new_readonly(spl_token::id(), false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[on_ramp_withdraw_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "{:?}", result.err());
+        println!("On ramp withdraw test passed!");
+        
+    }
+
+    #[tokio::test]
+    async fn test_off_ramp_deposit_native() {
+        //initialize program
+        let (mut ctx, program_id, _asset_mint, ramp_keypair) = setup_program().await;
+
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            ctx.payer.pubkey()
+        ).await.expect("Initialization should succeed");
+
+        // set active
+        let set_active_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetActive(
+                    SetActiveInstruction {
+                        is_active: true,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_active_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set active should succeed");
+        println!("Set active test passed!");
+
+        // off ramp deposit native
+
+        let off_ramp_deposit_native_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::OffRampDepositNative(
+                    OffRampDepositNativeInstruction {
+                        amount: 100,
+                        region: models::Region::KEN,
+                        medium: models::Medium::Primary,
+                        data: vec![],
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[off_ramp_deposit_native_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Off ramp deposit native should succeed {:?}", result.err());
+        println!("Off ramp deposit native test passed!");
+        
+    }
+
+    #[tokio::test]
+    async fn test_on_ramp_withdraw_native() {
+        //initialize program
+        let (mut ctx, program_id, _asset_mint, ramp_keypair) = setup_program().await;
+        
+        initialize_ramp_program(
+            &mut ctx.banks_client,
+            &ctx.payer,
+            ctx.last_blockhash,
+            program_id,
+            &ramp_keypair,
+            ctx.payer.pubkey()
+        ).await.expect("Initialization should succeed");
+
+        // set active
+        let set_active_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::SetActive(
+                    SetActiveInstruction {
+                        is_active: true,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[set_active_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Set active should succeed");
+        println!("Set active test passed!");
+
+        // First deposit some SOL to the ramp account so it has funds to withdraw
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let off_ramp_deposit_native_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::OffRampDepositNative(
+                    OffRampDepositNativeInstruction {
+                        amount: 1000,
+                        region: models::Region::KEN,
+                        medium: models::Medium::Primary,
+                        data: vec![],
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), false),
+                AccountMeta::new(ctx.payer.pubkey(), true),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[off_ramp_deposit_native_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "Off ramp deposit native should succeed");
+        println!("Off ramp deposit native test passed!");
+
+        // Now withdraw some SOL from the ramp account
+        ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let on_ramp_withdraw_native_instruction = Instruction::new_with_borsh(
+            program_id,
+            &processors::RampInstruction {
+                instruction: processors::Instruction::OnRampWithdrawNative(
+                    OnRampWithdrawNativeInstruction {
+                        amount: 100,
+                    }
+                ),
+            },
+            vec![
+                AccountMeta::new(ramp_keypair.pubkey(), true),
+                AccountMeta::new(ctx.payer.pubkey(), false),
+            ],
+        );
+
+        let mut transaction = Transaction::new_with_payer(&[on_ramp_withdraw_native_instruction], Some(&ctx.payer.pubkey()));
+        transaction.sign(&[&ctx.payer, &ramp_keypair], ctx.last_blockhash);
+        
+        let result = ctx.banks_client.process_transaction(transaction).await;
+        assert!(result.is_ok(), "On ramp withdraw native should succeed: {:?}", result.err());
+        println!("On ramp withdraw native test passed!");
+        
     }
 }

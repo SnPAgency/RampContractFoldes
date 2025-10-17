@@ -1,0 +1,6 @@
+# Cargo configuration for Solana program
+# This ensures compatibility with CI/CD environments
+
+[build]
+# Use stable lockfile format (version 3) for compatibility
+# Prevents version 4 lockfile generation which requires nightly features

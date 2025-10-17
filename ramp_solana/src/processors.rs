@@ -3,19 +3,27 @@ use {
             add_assets,
             initialize_program,
             off_ramp_deposit,
+            off_ramp_deposit_native,
             onramp_withdraw,
+            onramp_withdraw_native,
             remove_assets,
             set_active,
+            set_asset_fee,
+            set_native_fee_percentage,
             set_owner,
-            token_transfers,
+            //token_transfers,
             AddAssetsInstruction,
             InitializeProgramInstruction,
             OffRampDepositInstruction,
+            OffRampDepositNativeInstruction,
             OnRampWithdrawInstruction,
+            OnRampWithdrawNativeInstruction,
             RemoveAssetsInstruction,
             SetActiveInstruction,
+            SetAssetFeeInstruction,
+            SetNativeFeePercentageInstruction,
             SetOwnerInstruction,
-            TransferTokensArgs
+            //TransferTokensArgs
         },
         borsh::{BorshDeserialize, BorshSerialize},
         solana_program::{
@@ -36,9 +44,13 @@ pub enum Instruction {
     SetOwner(SetOwnerInstruction),
     AddAssets(AddAssetsInstruction),
     InitializeProgram(InitializeProgramInstruction),
-    TransferTokens(TransferTokensArgs),
+    //TransferTokens(TransferTokensArgs),
     OffRampDeposit(OffRampDepositInstruction),
-    OnRampWithdraw(OnRampWithdrawInstruction)
+    OnRampWithdraw(OnRampWithdrawInstruction),
+    OffRampDepositNative(OffRampDepositNativeInstruction),
+    OnRampWithdrawNative(OnRampWithdrawNativeInstruction),
+    SetNativeFeePercentage(SetNativeFeePercentageInstruction),
+    SetAssetFee(SetAssetFeeInstruction)
 }
 
 pub fn process_instruction(
@@ -84,9 +96,9 @@ pub fn process_instruction(
                 args
             )
         },
-        Instruction::TransferTokens(args) => {
-            token_transfers::transfer_tokens(accounts, args)
-        },
+        //Instruction::TransferTokens(args) => {
+        //    token_transfers::transfer_tokens(accounts, args)
+        //},
         Instruction::OffRampDeposit(args) => {
             off_ramp_deposit::off_ramp_deposit(
                 program_id,
@@ -101,5 +113,33 @@ pub fn process_instruction(
                 args
             )
         },
+        Instruction::OffRampDepositNative(args) => {
+            off_ramp_deposit_native::off_ramp_deposit_native(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::OnRampWithdrawNative(args) => {
+            onramp_withdraw_native::onramp_withdraw_native(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::SetNativeFeePercentage(args) => {
+            set_native_fee_percentage::set_native_fee_percentage(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::SetAssetFee(args) => {
+            set_asset_fee::set_asset_fee(
+                program_id,
+                accounts,
+                args
+            )
+        }
     }
 }

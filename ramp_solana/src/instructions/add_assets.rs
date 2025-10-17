@@ -69,8 +69,11 @@ pub fn add_assets(
         owner_account.key,
         asset_mint_account.key,
     );
+    if args.fee_percentage > 10000 {
+        msg!("Fee percentage too high: {}", args.fee_percentage);
+        return Err(RampError::InvalidFeePercentage.into());
+    }
     
-    // Verify the token accounts match expected addresses
     if owner_token_account.key != &owner_associated_token_address {
         msg!("Owner token account mismatch");
         return Err(RampError::InvalidAccountState.into());
@@ -81,7 +84,6 @@ pub fn add_assets(
         return Err(RampError::InvalidAccountState.into());
     }
     
-    // create account if it doesn't exist
     if ramp_token_account.lamports() == 0 {
         let account_instructions = associated_token_account_instruction::create_associated_token_account(
             owner_account.key,
@@ -127,14 +129,6 @@ pub fn add_assets(
         return Err(RampError::TransferFailed.into());
     }
 
-    // Add the new assets with their fee percentage
-        
-    // Validate fee percentage (e.g., max 10000 basis points = 100%)
-    if args.fee_percentage > 10000 {
-        msg!("Fee percentage too high: {}", args.fee_percentage);
-        return Err(RampError::InvalidFeePercentage.into());
-    }
-
     match ramp_state.add_asset(*asset_mint_account.key, args.fee_percentage) {
         Ok(()) => msg!("Added asset: {}", *asset_mint_account.key),
         Err(_) => {
@@ -143,13 +137,8 @@ pub fn add_assets(
         }
     }
 
-    // Now borrow mutably to update the state
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    
-    // Clear the account data first
     ramp_data.fill(0);
-    
-    // Serialize the updated state back to the account data
     let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
         msg!("Serialization failed: {:?}", e);
         RampError::InvalidAccountState

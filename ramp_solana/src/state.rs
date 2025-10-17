@@ -27,6 +27,8 @@ impl AssetEntry {
 pub struct RampState {
     pub owner: Pubkey,
     pub is_active: bool,
+    pub native_fee_percentage: u128,
+    pub native_revenue: u128,
     pub vault_address: Pubkey,
     pub asset_entries: [AssetEntry; 10],
 }
@@ -64,6 +66,8 @@ impl Default for RampState {
         Self {
             owner: Pubkey::default(),
             is_active: false,
+            native_fee_percentage: 0,
+            native_revenue: 0,
             vault_address: Pubkey::default(),
             asset_entries: [AssetEntry::default(); 10],
         }
@@ -101,6 +105,14 @@ impl RampState {
 
     pub fn set_new_owner(&mut self, owner: Pubkey) {
         self.owner = owner;
+    }
+
+    pub fn set_native_fee_percentage(&mut self, native_fee_percentage: u128) {
+        self.native_fee_percentage = native_fee_percentage;
+    }
+
+    pub fn update_native_revenue(&mut self, amount: u128) {
+        self.native_revenue = self.native_revenue.saturating_add(amount);
     }
 
     pub fn add_asset(&mut self, asset: Pubkey, fee_percentage: u128) -> Result<(), &'static str> {
