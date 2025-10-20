@@ -8,6 +8,8 @@ use solana_program::{
     system_instruction,
     msg
 };
+use crate::models::RampDeposit;
+use base64::{engine::general_purpose, Engine as _};
 
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -54,16 +56,20 @@ pub fn off_ramp_deposit_native(
     ramp_state.update_native_revenue(fee);
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
+    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
     if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
         return Err(RampError::InvalidAccountState.into());
     }
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");
+    msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
+        borsh::to_vec(&RampDeposit {
+            asset: Pubkey::default(),
+            amount: args.amount,
+            region: args.region,
+            medium: args.medium,
+            data: args.data,
+        }).unwrap()
+    ));
     
     Ok(())
 }

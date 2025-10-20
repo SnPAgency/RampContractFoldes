@@ -45,8 +45,6 @@ pub fn add_assets(
     
     // ramp's associated token account (will be created if doesn't exist)
     let ramp_token_account = next_account_info(account_info_iter)?;
-    
-    msg!("Adding assets...");
 
     // First, read and verify the ramp state
     let mut ramp_state: RampState = {
@@ -55,7 +53,6 @@ pub fn add_assets(
     };
 
     if  !ramp_state.is_active && !owner_account.is_signer {
-        msg!("Ramp account is not active or owner is not signer");
         return Err(RampError::UninitializedAccount.into());
     }
     
@@ -70,17 +67,14 @@ pub fn add_assets(
         asset_mint_account.key,
     );
     if args.fee_percentage > 10000 {
-        msg!("Fee percentage too high: {}", args.fee_percentage);
         return Err(RampError::InvalidFeePercentage.into());
     }
     
     if owner_token_account.key != &owner_associated_token_address {
-        msg!("Owner token account mismatch");
         return Err(RampError::InvalidAccountState.into());
     }
     
     if ramp_token_account.key != &ramp_associated_token_address {
-        msg!("Ramp token account mismatch");
         return Err(RampError::InvalidAccountState.into());
     }
     
@@ -125,33 +119,25 @@ pub fn add_assets(
     );
 
     if transfer_result.is_err() {
-        msg!("Transfer failed");
         return Err(RampError::TransferFailed.into());
     }
 
     match ramp_state.add_asset(*asset_mint_account.key, args.fee_percentage) {
-        Ok(()) => msg!("Added asset: {}", *asset_mint_account.key),
+        Ok(()) => {
+            let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+            ramp_data.fill(0);
+            let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
+
+            if serialized_data.len() > ramp_data.len() {
+                return Err(RampError::InvalidAccountState.into());
+            }
+
+            ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
+            msg!("Assets added successfully");
+        },
         Err(_) => {
-            msg!("Asset already exists: {}", *asset_mint_account.key);
             return Err(RampError::AssetAlreadyExists.into());
         }
     }
-
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
-    
-    if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
-        return Err(RampError::InvalidAccountState.into());
-    }
-    
-    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");
-    
-    msg!("Assets added successfully");
     Ok(())
 }
