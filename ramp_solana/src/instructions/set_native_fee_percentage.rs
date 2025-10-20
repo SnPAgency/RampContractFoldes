@@ -16,10 +16,7 @@ pub struct SetNativeFeePercentageInstruction {
 pub fn set_native_fee_percentage(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetNativeFeePercentageInstruction) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
-    let owner_account = next_account_info(account_info_iter)?;
-    
-    msg!("Setting native fee percentage to {}...", args.fee_percentage);
-    
+    let owner_account = next_account_info(account_info_iter)?;    
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?

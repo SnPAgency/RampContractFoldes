@@ -9,6 +9,8 @@ use solana_program::{
 };
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::instruction as token_instruction;
+use crate::models::RampDeposit;
+use base64::{engine::general_purpose, Engine as _};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct OffRampDepositInstruction {
@@ -31,26 +33,19 @@ pub fn off_ramp_deposit(
     let ramp_token_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     
-    msg!("Off-ramping deposit...");
-
-    //let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
-
     if !ramp_state.is_active {
-        msg!("Ramp account is not active or owner is not signer");
         return Err(RampError::ProgramNotActive.into());
     }
-
     match ramp_state.get_asset_info(asset_mint_account.key) {
         Some(asset) => {
             let revenue = (args.amount as u128) * (asset.get_fee_percentage() / 100);
             asset.add_revenue(revenue);
         },
         None => {
-            msg!("Asset not found");
             return Err(RampError::AssetNotFound.into());
         }
     }
@@ -79,7 +74,6 @@ pub fn off_ramp_deposit(
     );
 
     if transfer_result.is_err() {
-        msg!("Transfer failed");
         return Err(RampError::TransferFailed.into());
     }
 
@@ -88,17 +82,21 @@ pub fn off_ramp_deposit(
     ramp_data.fill(0);
     
     // Serialize the updated state back to the account data
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
+    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
     
     if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
         return Err(RampError::InvalidAccountState.into());
     }
     
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");    
+    msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
+        borsh::to_vec(&RampDeposit {
+            asset: asset_mint_account.key.clone(),
+            amount: args.amount,
+            region: args.region,
+            medium: args.medium,
+            data: args.data,
+        }).unwrap()
+    ));    
     Ok(())
 }

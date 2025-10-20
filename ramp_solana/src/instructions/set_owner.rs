@@ -17,28 +17,21 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
     let ramp_account = next_account_info(account_info_iter)?;
     let current_owner_account = next_account_info(account_info_iter)?;
 
-    msg!("Setting new owner...");
-
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)
     }?;
 
     if !current_owner_account.is_signer {
-        msg!("Current owner account must be signer");
         return Err(RampError::InvalidSigner.into());
     }
 
     ramp_state.set_new_owner(args.new_owner);
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
+    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
     
     if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
         return Err(RampError::InvalidAccountState.into());
     }
     

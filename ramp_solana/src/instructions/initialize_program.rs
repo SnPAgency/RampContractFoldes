@@ -34,7 +34,6 @@ pub fn initialize_program(
         .minimum_balance(account_space);
 
     if !payer_account.is_signer {
-        msg!("Payer account should not be the signer");
         return Err(RampError::InvalidSigner.into());
     }
     invoke(
@@ -59,17 +58,12 @@ pub fn initialize_program(
     ramp_state.native_fee_percentage = args.native_fee_percentage;
     
     ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
+    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
     
     if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
         return Err(RampError::InvalidAccountState.into());
     }
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    msg!("State serialized successfully");
 
     msg!("Ramp account initialized");
     Ok(())

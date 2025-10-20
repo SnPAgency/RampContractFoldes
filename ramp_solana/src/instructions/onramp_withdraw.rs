@@ -28,8 +28,6 @@ pub fn onramp_withdraw(
     let asset_receiver_token_account = next_account_info(account_info_iter)?;
     let ramp_token_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
-    
-    msg!("On-ramping withdraw...");
 
     let ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
@@ -37,7 +35,6 @@ pub fn onramp_withdraw(
     };
 
     if !ramp_state.is_active && ramp_owner.key != &ramp_state.owner {
-        msg!("Ramp account is not active or owner is not signer");
         return Err(RampError::UninitializedAccount.into());
     }
 
@@ -68,16 +65,14 @@ pub fn onramp_withdraw(
             );
         
             if transfer_result.is_err() {
-                msg!("Transfer failed");
                 return Err(RampError::TransferFailed.into());
             }
         },
         None => {
-            msg!("Asset not found");
             return Err(RampError::AssetNotFound.into());
         }
     }
-    msg!("State serialized successfully");    
+    msg!("On-ramp withdraw completed successfully");    
     Ok(())
 }
 
