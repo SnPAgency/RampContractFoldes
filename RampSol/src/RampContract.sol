@@ -206,7 +206,7 @@ contract RampContract is
     }
 
     /**
-     * @dev function onRampDeposit(address, uint256, address, OnrampMedium, Region, bytes)
+     * @dev function offRampDeposit(address, uint256, address, OnrampMedium, Region, bytes)
      * @dev Deposit function for the Ramp protocol.
      * @param asset The address of the asset to be deposited.
      * @param amount The amount of the asset to be deposited.
@@ -219,7 +219,7 @@ contract RampContract is
      * @notice This function emits the RampDeposit event to indicate that the asset amount
      * has been deposited from the user to the contract.
      */
-    function onRampDeposit(
+    function offRampDeposit(
         address asset,
         uint256 amount,
         address sender,
@@ -254,7 +254,7 @@ contract RampContract is
     }
 
     /**
-     * @dev function onRampDepositNative(OnrampMedium, Region, bytes)
+     * @dev function offRampNative(OnrampMedium, Region, bytes)
      * @dev Deposits Native token.
      * @param medium The medium of the onramp.
      * @param region The region of the onramp.
@@ -265,7 +265,7 @@ contract RampContract is
      * @notice This function emits the RampDeposit event to indicate that the asset amount
      * has been deposited from the user to the contract.
      */
-    function onRampNative(
+    function offRampNative(
         IRampContract.OnrampMedium medium,
         IRampContract.Region region,
         bytes memory data
@@ -289,7 +289,7 @@ contract RampContract is
     }
 
     /**
-     * @dev function onRampERC20(address, uint256, address, OnrampMedium, Region, bytes)
+     * @dev function offRampWithPermit(address, uint256, address, OnrampMedium, Region, bytes)
      * @dev Deposit  for ERC20 tokens.
      * @param asset The address of the asset to be deposited.
      * @param amount The amount of the asset to be deposited.
@@ -303,7 +303,7 @@ contract RampContract is
      * @notice This function emits the RampDeposit event to indicate that the asset amount
      * has been deposited from the user to the contract.
      */
-    function onRampWithPermit(
+    function offRampWithPermit(
         address asset,
         uint256 amount,
         address sender,
@@ -351,7 +351,7 @@ contract RampContract is
     }
 
     /**
-     * @dev function withdraw(address, uint256, address)
+     * @dev function onRampWithdraw(address, uint256, address)
      * @dev Withdraw function for the Ramp protocol.
      * @param asset The address of the asset to be withdrawn.
      * @param amount The amount of the asset to be withdrawn.
@@ -362,7 +362,7 @@ contract RampContract is
      * amount has been sent to the user.
      * @notice This function does not update the revenue per asset for the asset since this gets computed offchain.
      */
-    function offRampWithdraw(
+    function onRampWithdraw(
         address asset,
         uint256 amount,
         address recipient
@@ -388,7 +388,7 @@ contract RampContract is
 
 
     /**
-     * @dev function offRampNative(address payable receiver, uint256 amount)
+     * @dev function onRampNative(address payable receiver, uint256 amount)
      * @dev Withdraws native tokens from the contract.
      * @param receiver The address of the receiver.
      * @param amount The amount of native tokens to be withdrawn.
@@ -398,7 +398,7 @@ contract RampContract is
      * has been sent to the user.
      * @notice This function does not update the revenue per asset for the asset since this gets computed offchain.
      */
-    function offRampNative(address payable receiver, uint256 amount) external whenNotPaused onlyOwner {
+    function onRampNative(address payable receiver, uint256 amount) external whenNotPaused onlyOwner {
         IRampContract.AssetInfo memory _assetInfo = assetInfo[address(0)];
 
         if ((address(this).balance - _assetInfo.revenuePerAsset) < amount) {
