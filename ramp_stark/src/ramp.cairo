@@ -312,7 +312,7 @@ pub mod RampStark {
         /// @notice This function emits the RampDeposit event to indicate that the asset amount
         /// has been deposited from the user to the contract.
         /// 
-        fn on_ramp_deposit(
+        fn off_ramp_deposit(
             ref self: ContractState,
             asset: ContractAddress,
             amount: u256,
@@ -324,8 +324,6 @@ pub mod RampStark {
             assert(self.is_asset_allowed(asset), RampErrors::INVALID_ASSET);
 
             let token = IERC20Dispatcher { contract_address: asset };
-
-
             assert(
                 token.transfer_from(sender, get_contract_address(), amount),
                 RampErrors::TOKEN_DEPOSIT_FAILED
@@ -363,7 +361,7 @@ pub mod RampStark {
         /// amount has been sent to the user.
         /// @notice This function does not update the revenue per asset for the asset since this gets computed offchain.
         /// 
-        fn off_ramp_withdraw(
+        fn on_ramp_withdraw(
             ref self: ContractState,
             asset: ContractAddress,
             amount: u256,

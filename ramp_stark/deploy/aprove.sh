@@ -2,7 +2,7 @@
 
 sncast --account=phydy \
     invoke \
-    --contract-address=0x049a388016755daf4258ba1f03092f3bd035abdf00904252c24061f93ddf680c \
+    --contract-address=0x079c69dce3e049f6eb28f9aa71b0c735ff7b7a1ca5b263bf6f98f33799ace0e2 \
     --function "approve" \
-    --arguments '0x02461084678393887c078d3bfcbb94a9afed63284a69145e511786e0a652f0f7, 10000' \
+    --arguments '0x02e595ef87a1edc526f04c25e39f65a1adcb5012e599f3033b74161745a2b86c, 10000' \
     --network sepolia

@@ -55,6 +55,9 @@ contract RampContract is
     // This is the address of the vault where the project revenue is stored.
     address payable public vault;
 
+
+    string public nativeAsset;
+
     /**
      * @dev Functions
      */
@@ -62,13 +65,18 @@ contract RampContract is
     /**
      * @dev Initializes the contract.
      */
-    function initialize(address _controller, address payable _vault) public initializer {
+    function initialize(
+        address _controller,
+        address payable _vault,
+        string memory _native_asset
+    ) public initializer {
         __Pausable_init();
         __Ownable_init(_controller);
         vault = _vault;
         _allowedAssets[address(0)] = true;
         _allowedAssetsList.push(address(0));
         assetInfo[address(0)] = IRampContract.AssetInfo(1, 0);
+        nativeAsset = _native_asset;
     }
 
     /**
@@ -284,7 +292,15 @@ contract RampContract is
             }
             _assetInfo.revenuePerAsset = newRevenue;
 
-            emit IRampContract.RampDeposit(address(0), msg.sender, amountAfterFee, "NATIVE", medium, region, data);
+            emit IRampContract.RampDeposit(
+                address(0),
+                msg.sender,
+                amountAfterFee,
+                nativeAsset,
+                medium,
+                region,
+                data
+            );
         }
     }
 
@@ -404,7 +420,12 @@ contract RampContract is
         if ((address(this).balance - _assetInfo.revenuePerAsset) < amount) {
             revert Errors.Invalid__AssetBalance(address(0), address(this));
         }
-        receiver.transfer(amount);
+        (bool sent, ) = receiver.call{value: amount}("");
+
+        if (!sent) {
+            revert Errors.Asset__TransferFailed(address(0), receiver);
+        }
+
         emit IRampContract.RampWithdraw(address(0), receiver, amount);
     }
         

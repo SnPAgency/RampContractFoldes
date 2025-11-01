@@ -22,6 +22,4 @@ contract UpgradeRamp is Script {
             ""
         );
     }
-
 }
-

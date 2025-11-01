@@ -1,3 +1,7 @@
 #!/bin/bash
 
-forge script script/01_Deploy.s.sol:RampContractScript --sender ${SENDER} --rpc-url sepolia --broadcast -vvvv --libraries src/helpers/errors.sol:Errors:0x5aB9E25D2eCBE4a77f6D0BBFB8495150DdB1d545
+forge script ../script/01_Deploy.s.sol:RampContractScript \
+    --sender ${SENDER} \
+    --rpc-url sepolia \
+    --broadcast -vvvv \
+    --libraries src/helpers/errors.sol:Errors:0x5aB9E25D2eCBE4a77f6D0BBFB8495150DdB1d545

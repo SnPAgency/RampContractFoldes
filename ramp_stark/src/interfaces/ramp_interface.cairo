@@ -24,7 +24,7 @@ pub trait IRampStack<TContractState> {
 
     fn remove_allowed_asset(ref self: TContractState, asset: ContractAddress, token_receiver: ContractAddress);
 
-    fn on_ramp_deposit(
+    fn off_ramp_deposit(
         ref self: TContractState,
         asset: ContractAddress,
         amount: u256,
@@ -34,7 +34,7 @@ pub trait IRampStack<TContractState> {
         data: ByteArray
     );
 
-    fn off_ramp_withdraw(
+    fn on_ramp_withdraw(
         ref self: TContractState,
         asset: ContractAddress,
         amount: u256,

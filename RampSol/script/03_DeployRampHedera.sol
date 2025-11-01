@@ -22,7 +22,7 @@ contract RampHederaContractScript is Script {
         address proxyAddress = Upgrades.deployTransparentProxy(
             "RampContract.sol",
             controller,
-            abi.encodeCall(RampContract.initialize, (controller, vault))
+            abi.encodeCall(RampContract.initialize, (controller, vault, "HBAR"))
 
         );
 
