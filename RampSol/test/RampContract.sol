@@ -24,7 +24,7 @@ contract RampContractTestFunctionality is Test {
         rampToken1 = new Token("Test", "TT", controller);
         rampToken2 = new Token("Test", "TT", controller);
         rampContract = new RampContract();
-        rampContract.initialize(controller, payable(vault));
+        rampContract.initialize(controller, payable(vault), "ETH");
         rampToken1.mint(controller, 100);
         rampToken2.mint(controller, 100);
         rampToken1.mint(nonOwner,10000);
@@ -55,7 +55,7 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""
         );
-        rampContract.onRampDeposit(
+        rampContract.offRampDeposit(
             address(rampToken1),
             100,
             nonOwner,
@@ -88,7 +88,7 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""
         );
-        rampContract.onRampNative{value: 90}(
+        rampContract.offRampNative{value: 90}(
             IRampContract.OnrampMedium.Primary,
             IRampContract.Region.KEN,
             ""  
@@ -142,7 +142,7 @@ contract RampContractTestFunctionality is Test {
             IRampContract.Region.KEN,
             ""
         );
-        rampContract.onRampWithPermit(
+        rampContract.offRampWithPermit(
             address(rampToken1),
             100,
             nonOwner,
@@ -179,7 +179,7 @@ contract RampContractTestFunctionality is Test {
             nonOwner,
             10
         );
-        rampContract.offRampWithdraw(
+        rampContract.onRampWithdraw(
             address(rampToken1),
             10,
             nonOwner
@@ -202,7 +202,7 @@ contract RampContractTestFunctionality is Test {
             nonOwner,
             10
         );
-        rampContract.offRampNative(
+        rampContract.onRampNative(
             payable(nonOwner),
             10
         );

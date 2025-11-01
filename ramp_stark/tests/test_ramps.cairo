@@ -48,11 +48,17 @@ fn deploy_contract() -> (ContractAddress, ContractAddress) {
     (contract_address, token_contract_address)
 }
 
-fn set_up_contract(contract: ContractAddress, token: ContractAddress) -> (IRampStackDispatcher, IERC20Dispatcher) {
-    let mut ramp_contract = IRampStackDispatcher { contract_address: contract };
-    let mut ramp_token = IERC20Dispatcher {contract_address: token};
-
-    assert(ramp_token.balance_of(USER_1()) == 100000000000000000000000, 'User 1 balance Err');
+fn set_up_contract(
+    contract: ContractAddress,
+    token: ContractAddress
+) -> (IRampStackDispatcher, IERC20Dispatcher) {
+    let mut ramp_contract = IRampStackDispatcher {
+        contract_address: contract
+    };
+    let mut ramp_token = IERC20Dispatcher {
+        contract_address: token
+    };
+    assert(ramp_token.balance_of(USER_1()) == 1000000000000000000000000, 'User 1 balance Err');
 
     // user one send some tokens to the owner
     start_cheat_caller_address(token, USER_1());
@@ -91,7 +97,7 @@ fn test_onramp() {
 
     let contract_balance_before = ramp_token.balance_of(contract);
     let mut spy = spy_events();
-    ramp_contract.on_ramp_deposit(token, 1000, USER_1(), OnrampMedium::Primary, Region::NGA, "");    
+    ramp_contract.off_ramp_deposit(token, 1000, USER_1(), OnrampMedium::Primary, Region::NGA, "");    
 
     let fee_percentage: u256 = ramp_contract.get_asset_fee_percentage(token).into();
 
@@ -127,7 +133,7 @@ fn test_on_ramp_wrong_token() {
     let (ramp_contract, _) = set_up_contract(contract, token);
 
     start_cheat_caller_address(contract, USER_1());
-    ramp_contract.on_ramp_deposit(USER_2(), 1000, USER_1(), OnrampMedium::Primary, Region::NGA, "");
+    ramp_contract.off_ramp_deposit(USER_2(), 1000, USER_1(), OnrampMedium::Primary, Region::NGA, "");
     stop_cheat_caller_address(contract);
 }
 
@@ -146,7 +152,7 @@ fn test_offramp_withdraw() {
 
     assert(contract_balance_before > 0, 'Balance Error before');
 
-    ramp_contract.off_ramp_withdraw(token, 100, USER_2());
+    ramp_contract.on_ramp_withdraw(token, 100, USER_2());
     spy.assert_emitted(
         @array![
             (
@@ -174,7 +180,7 @@ fn test_off_ramp_withdraw_wrong_token() {
     let (ramp_contract, _) = set_up_contract(contract, token);
 
     start_cheat_caller_address(contract, OWNER());
-    ramp_contract.off_ramp_withdraw(USER_2(), 1000, USER_1());
+    ramp_contract.on_ramp_withdraw(USER_2(), 1000, USER_1());
     stop_cheat_caller_address(contract);
 }
 
@@ -186,6 +192,6 @@ fn test_off_ramp_withdraw_wrong_owner() {
     let (ramp_contract, _) = set_up_contract(contract, token);
 
     start_cheat_caller_address(contract, USER_2());
-    ramp_contract.off_ramp_withdraw(token, 1000, USER_1());
+    ramp_contract.on_ramp_withdraw(token, 1000, USER_1());
     stop_cheat_caller_address(contract);
 }

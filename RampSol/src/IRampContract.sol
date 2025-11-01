@@ -102,7 +102,7 @@ interface IRampContract {
         address balanceRecipient
     ) external;
 
-    function onRampDeposit(
+    function offRampDeposit(
         address asset,
         uint256 amount,
         address sender,
@@ -111,21 +111,21 @@ interface IRampContract {
         bytes memory data
     ) external;
 
-    function onRampNative(
+    function offRampNative(
         OnrampMedium medium,
         Region region,
         bytes memory data
     ) external payable;
     
-    function offRampWithdraw(
+    function onRampWithdraw(
         address asset,
         uint256 amount,
         address recipient
     ) external;
 
-    function offRampNative(address payable receiver, uint256 amount) external;
+    function onRampNative(address payable receiver, uint256 amount) external;
 
-    function onRampWithPermit(
+    function offRampWithPermit(
         address asset,
         uint256 amount,
         address sender,

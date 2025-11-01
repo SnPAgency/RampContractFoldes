@@ -24,7 +24,7 @@ contract RampContractTest is Test {
         rampToken1 = new Token("Test", "TT", controller);
         rampToken2 = new Token("Test", "TT", controller);
         rampContract = new RampContract();
-        rampContract.initialize(controller, payable(vault));
+        rampContract.initialize(controller, payable(vault), "ETH");
     }
 
     // Test pause function

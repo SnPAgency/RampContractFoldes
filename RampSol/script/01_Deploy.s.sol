@@ -13,7 +13,6 @@ contract RampContractScript is Script {
     function setUp() public {}
 
     function run() public {
-
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address controller = vm.envAddress("CONTROLER");
         address payable vault = payable(vm.envAddress("VAULT"));
@@ -25,7 +24,7 @@ contract RampContractScript is Script {
         address proxyAddress = Upgrades.deployTransparentProxy(
             "RampContract.sol",
             controller,
-            abi.encodeCall(RampContract.initialize, (controller, vault))
+            abi.encodeCall(RampContract.initialize, (controller, vault, "ETH"))
 
         );
 
