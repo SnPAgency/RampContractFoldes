@@ -1,8 +1,9 @@
-mod state;
-mod errors;
-mod instructions;
-mod processors;
-mod models;
+pub mod state;
+pub mod errors;
+pub mod instructions;
+pub mod processors;
+pub mod models;
+
 
 use solana_program::{
     pubkey::Pubkey,
@@ -24,33 +25,33 @@ fn process_instruction(
 
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::{
         instructions::*, processors, state::RampState
     };
 
     use super::*;
+    use solana_program::example_mocks::solana_sdk::system_program;
     use solana_program_test::*;
     use solana_sdk::{
         instruction::{
             AccountMeta, Instruction
         },
-        program_pack::Pack, signature::{
+        signature::{
             Keypair,
             Signer
-        }, system_program, transaction::Transaction
+        }, transaction::Transaction
     };
     use spl_associated_token_account::get_associated_token_address;
-    use spl_token;
+    use spl_token::{self, solana_program::program_pack::Pack as _};
     use borsh::BorshDeserialize;
-    
 
     /**
      * Setup the program for testing
      * 
      * @returns (program_test_context, program_id, asset_mint)
      */
-    async fn setup_program() -> (ProgramTestContext, Pubkey, Keypair, Keypair) {
+    pub async fn setup_program() -> (ProgramTestContext, Pubkey, Keypair, Keypair) {
         let program_id = Pubkey::new_unique();
         let program_test = ProgramTest::new(
             "ramp_solana",
@@ -58,18 +59,18 @@ mod tests {
             processor!(process_instruction),
         );
 
-        let mut program_ctx = program_test.start_with_context().await;
+        let program_ctx = program_test.start_with_context().await;
 
         let asset_mint = Keypair::new();
         let rent = program_ctx.banks_client.get_rent().await.unwrap();
         let mint_rent = rent.minimum_balance(spl_token::state::Mint::LEN);
 
-        let mint_account_instructions = solana_sdk::system_instruction::create_account(
+        let mint_account_instructions = solana_system_interface::instruction::create_account(
             &program_ctx.payer.pubkey(),
             &asset_mint.pubkey(),
             mint_rent,
             spl_token::state::Mint::LEN as u64,
-            &spl_token::id(),
+            &spl_token::ID,
         );
 
         let mint_init_tx = spl_token::instruction::initialize_mint(
@@ -634,7 +635,7 @@ mod tests {
                 AccountMeta::new(ctx.payer.pubkey(), true),
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(spl_associated_token_account::id(), false),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
                 AccountMeta::new(owner_token_account, false),
                 AccountMeta::new(ramp_token_account, false),
             ],
@@ -1062,7 +1063,7 @@ mod tests {
             vec![
                 AccountMeta::new(ramp_keypair.pubkey(), false),
                 AccountMeta::new(ctx.payer.pubkey(), true),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
 
@@ -1129,7 +1130,7 @@ mod tests {
             vec![
                 AccountMeta::new(ramp_keypair.pubkey(), false),
                 AccountMeta::new(ctx.payer.pubkey(), true),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
 

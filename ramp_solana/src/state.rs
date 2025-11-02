@@ -126,8 +126,6 @@ impl RampState {
         if self.asset_entries.iter_mut().find(|entry| entry.asset == asset).is_some() {
             return Err("Asset already exists");
         }
-
-        //let empty_slot = self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default());
         match self.asset_entries.iter_mut().find(|entry| entry.asset == Pubkey::default()) {
             Some(entry) => {
                 *entry = asset_entry;

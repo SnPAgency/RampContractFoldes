@@ -5,9 +5,9 @@ use solana_program::{
     entrypoint::ProgramResult, 
     pubkey::Pubkey,
     program::invoke,
-    system_instruction,
     msg
 };
+use solana_system_interface::instruction::transfer;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
 
@@ -39,7 +39,7 @@ pub fn off_ramp_deposit_native(
     if !ramp_state.is_active {
         return Err(RampError::ProgramNotActive.into());
     }
-    let transfer_instruction = system_instruction::transfer(
+    let transfer_instruction = transfer(
         depositor_account.key,
         ramp_account.key,
         args.amount,

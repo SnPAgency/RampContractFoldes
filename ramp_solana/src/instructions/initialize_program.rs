@@ -5,11 +5,11 @@ use solana_program::{
     entrypoint::ProgramResult, 
     msg, 
     program::invoke,
-    pubkey::Pubkey, 
     rent::Rent, 
     sysvar::Sysvar,
-    system_instruction::create_account
 };
+use solana_system_interface::instruction::create_account;
+use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct InitializeProgramInstruction {

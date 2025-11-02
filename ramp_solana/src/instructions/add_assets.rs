@@ -7,8 +7,8 @@ use solana_program::{
     pubkey::Pubkey,
     program::invoke,
 };
-use spl_associated_token_account::{instruction as associated_token_account_instruction, get_associated_token_address};
-use spl_token::instruction as token_instruction;
+use spl_associated_token_account::{get_associated_token_address, instruction::create_associated_token_account}; 
+use spl_token_interface::instruction::transfer;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct AddAssetsInstruction {
@@ -79,7 +79,7 @@ pub fn add_assets(
     }
     
     if ramp_token_account.lamports() == 0 {
-        let account_instructions = associated_token_account_instruction::create_associated_token_account(
+        let account_instructions = create_associated_token_account(
             owner_account.key,
             ramp_account.key,
             asset_mint_account.key,
@@ -99,7 +99,7 @@ pub fn add_assets(
         )?;
     }
 
-    let transfer_instructions = token_instruction::transfer(
+    let transfer_instructions = transfer(
         token_program.key,
         owner_token_account.key,
         ramp_token_account.key,

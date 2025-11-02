@@ -8,7 +8,7 @@ use solana_program::{
     program::invoke,
 };
 use spl_associated_token_account::get_associated_token_address;
-use spl_token::instruction as token_instruction;
+use spl_token_interface::instruction as token_instruction;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
 
