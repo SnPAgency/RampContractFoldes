@@ -8,14 +8,41 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 borsh = "1.5.7"
-solana-program = "1.18.26"
-spl-token = { version = "4.0.0", features = [ "no-entrypoint" ] }
-spl-associated-token-account = { version = "2.3.0", features = [ "no-entrypoint" ] }
+solana-program = "3.0.0"
+spl-token = { version = "9.0.0", features = [ "no-entrypoint" ] }
+spl-associated-token-account = { version = "8.0.0", features = [ "no-entrypoint" ] }
 thiserror = "2.0.12"
 base64 = "0.22.1"
+solana-system-interface = "2.0.0"
+spl-token-interface = "2.0.0"
+
 
 
 [dev-dependencies]
-solana-program-test = "1.18.26"
-solana-sdk = "1.18.26"
+solana-program-test = "3.0.0"
+solana-sdk = "3.0.0"
+solana-client = "3.0.0"
+solana-commitment-config = "3.0.0"
 tokio = "1.46.1"
+once_cell = "1.21.3"
+
+
+
+
+[[example]]
+name = "create_token"
+path = "examples/create_token.rs"
+
+[example.dev-dependencies]
+ramp_solana = { path = "../ramp_solana" }
+
+
+
+
+[[example]]
+name = "initialize_program"
+path = "examples/initialize_program.rs"
+
+
+
+
