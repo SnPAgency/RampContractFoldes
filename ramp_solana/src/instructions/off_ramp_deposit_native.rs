@@ -4,10 +4,10 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, 
     pubkey::Pubkey,
-    program::invoke,
+    //program::invoke,
     msg
 };
-use solana_system_interface::instruction::transfer;
+//use solana_system_interface::instruction::transfer;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
 
@@ -29,7 +29,7 @@ pub fn off_ramp_deposit_native(
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let depositor_account = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
+    //let system_program = next_account_info(account_info_iter)?;
 
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
@@ -39,19 +39,10 @@ pub fn off_ramp_deposit_native(
     if !ramp_state.is_active {
         return Err(RampError::ProgramNotActive.into());
     }
-    let transfer_instruction = transfer(
-        depositor_account.key,
-        ramp_account.key,
-        args.amount,
-    );
-    invoke(
-        &transfer_instruction,
-        &[
-            depositor_account.clone(),
-            ramp_account.clone(),
-            system_program.clone(),
-        ],
-    )?;
+
+    **depositor_account.try_borrow_mut_lamports()? -= args.amount;
+    **ramp_account.try_borrow_mut_lamports()? += args.amount;
+
     let fee = ramp_state.native_fee_percentage * (args.amount / 100) as u128;
     ramp_state.update_native_revenue(fee);
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
@@ -64,7 +55,9 @@ pub fn off_ramp_deposit_native(
     msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
         borsh::to_vec(&RampDeposit {
             asset: Pubkey::default(),
+            asset_name: "SOL".to_string(),
             amount: args.amount,
+            sender: *depositor_account.key,
             region: args.region,
             medium: args.medium,
             data: args.data,

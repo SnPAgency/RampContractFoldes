@@ -1,4 +1,4 @@
-use solana_program::example_mocks::solana_sdk::system_program;
+use solana_program::config::program::ID as system_program_id;
 use solana_sdk::{
     instruction::{
         Instruction,
@@ -7,10 +7,10 @@ use solana_sdk::{
     signer::EncodableKey,
     transaction::Transaction,
 };
-use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::signature::{Keypair, Signer};
 use once_cell::sync::Lazy;
 use solana_commitment_config::CommitmentConfig;
+use solana_client::nonblocking::rpc_client::RpcClient;
 
 static SOLANA_MAINNET_URL: Lazy<String> = Lazy::new(|| "https://api.mainnet-beta.solana.com".to_string());
 static SOLANA_TESTNET_URL: Lazy<String> = Lazy::new(|| "https://api.testnet.solana.com".to_string());
@@ -30,7 +30,6 @@ pub fn get_client(network: &str) -> RpcClient {
 #[tokio::main]
 async fn main() {
     let client = get_client("local");
-    //let mint = Keypair::read_from_file("../../token_keypair.json").unwrap();
     let path = std::env::var_os("DEV_KEY_PAIR").unwrap();
     let signer_keypair = Keypair::read_from_file(path).unwrap();
     let ramp_keypair = Keypair::read_from_file("../target/deploy/ramp_solana-keypair.json").unwrap();
@@ -43,7 +42,7 @@ async fn main() {
     let accounts = vec![
         AccountMeta::new(ramp_keypair.pubkey(), true),
         AccountMeta::new(signer_keypair.pubkey(), true),
-        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(system_program_id, false),
     ];
 
     let initialize_instruction = Instruction::new_with_borsh(

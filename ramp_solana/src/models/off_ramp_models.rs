@@ -22,9 +22,11 @@ pub enum Medium {
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct RampDeposit {
     pub asset: Pubkey,
+    pub asset_name: String,
     pub amount: u64,
-    pub region: Region,
+    pub sender: Pubkey,
     pub medium: Medium,
+    pub region: Region,
     pub data: Vec<u8>,
 }
 

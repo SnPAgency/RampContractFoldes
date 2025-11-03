@@ -26,6 +26,8 @@ fn process_instruction(
 
 #[cfg(test)]
 pub mod tests {
+    use std::str::FromStr;
+
     use crate::{
         instructions::*, processors, state::RampState
     };
@@ -129,7 +131,7 @@ pub mod tests {
         (program_ctx, program_id, asset_mint, ramp_keypair)
     }
     
-    /**
+    /**instruction::
      * Initialize the ramp program
      * 
      * @param banks_client - The banks client
@@ -877,6 +879,14 @@ pub mod tests {
 
         // off ramp deposit (ramp ATA is created by add_assets)
         ctx.last_blockhash = ctx.banks_client.get_latest_blockhash().await.unwrap();
+        let metadata_account = solana_sdk::pubkey::Pubkey::find_program_address(
+            &[
+                "metadata".as_bytes(),
+                &asset_mint.pubkey().to_bytes(),
+                &mpl_token_metadata::ID.to_bytes()],
+                &Pubkey::from_str_const(mpl_token_metadata::ID.to_string().as_str())
+            ).0;
+
         let off_ramp_withdraw_instruction = Instruction::new_with_borsh(
             program_id,
             &processors::RampInstruction {
@@ -896,6 +906,7 @@ pub mod tests {
                 AccountMeta::new(owner_token_account, false),
                 AccountMeta::new(ramp_token_account, false),
                 AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(metadata_account, false),
             ],
         );
 
