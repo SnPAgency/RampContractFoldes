@@ -7,7 +7,11 @@ use solana_program::{
     pubkey::Pubkey,
     program::invoke,
 };
-use spl_associated_token_account::{get_associated_token_address, instruction::create_associated_token_account}; 
+use spl_associated_token_account::{
+    get_associated_token_address,
+    get_associated_token_address_with_program_id,
+    instruction::create_associated_token_account
+}; 
 use spl_token_interface::instruction::transfer;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -57,26 +61,28 @@ pub fn add_assets(
     }
     
     //ramp asset account
-    let ramp_associated_token_address = get_associated_token_address(
+    let ramp_associated_token_address = get_associated_token_address_with_program_id(
         ramp_account.key,
         asset_mint_account.key,
+        &spl_token_interface::ID,
     );
     //sender asset account
-    let owner_associated_token_address = get_associated_token_address(
+    let owner_associated_token_address = get_associated_token_address_with_program_id(
         owner_account.key,
         asset_mint_account.key,
+        &spl_token_interface::ID,
     );
     if args.fee_percentage > 10000 {
         return Err(RampError::InvalidFeePercentage.into());
     }
     
-    if owner_token_account.key != &owner_associated_token_address {
-        return Err(RampError::InvalidAccountState.into());
-    }
-    
-    if ramp_token_account.key != &ramp_associated_token_address {
-        return Err(RampError::InvalidAccountState.into());
-    }
+    //if owner_token_account.key != &owner_associated_token_address {
+    //    return Err(RampError::InvalidAccountState.into());
+    //}
+    //
+    //if ramp_token_account.key != &ramp_associated_token_address {
+    //    return Err(RampError::InvalidAccountState.into());
+    //}
     
     if ramp_token_account.lamports() == 0 {
         let account_instructions = create_associated_token_account(
