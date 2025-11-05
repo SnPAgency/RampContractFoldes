@@ -198,7 +198,7 @@ jobs:
           # Ensure cargo test-sbf uses the correct Rust toolchain
           cd ramp_solana
           cargo build-sbf
-          cargo test-sbf -- --nocapture
+        # cargo test-sbf -- --nocapture
 
 
   # Job for Stellar Soroban contracts

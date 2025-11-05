@@ -45,8 +45,8 @@ pub fn initialize_program(
             program_id,
         ),
         &[
-            ramp_account.clone(),
             payer_account.clone(),
+            ramp_account.clone(),
             system_program_account.clone(),
         ],
     )?;

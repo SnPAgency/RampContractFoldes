@@ -1,2 +1,4 @@
 [toolchain]
-channel = "nightly"
+channel = "1.84.0"                     # Matches Solana CLI 2.3.13’s internal toolchain
+components = ["rustfmt", "clippy"]
+targets = ["bpfel-unknown-unknown"]    # Needed for cargo build-sbf
