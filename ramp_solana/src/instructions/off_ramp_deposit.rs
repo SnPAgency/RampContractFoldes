@@ -8,17 +8,17 @@ use solana_program::{
     program::invoke,
 };
 use spl_associated_token_account::get_associated_token_address;
-use spl_token_2022_interface::{
-    extension::{
-        BaseStateWithExtensions,
-        StateWithExtensions,
-        //metadata_pointer::MetadataPointer
-    },
-    state::{
-        //Account,
-        Mint
-    }
-};
+//use spl_token_2022_interface::{
+//    extension::{
+//        //BaseStateWithExtensions,
+//        //StateWithExtensions,
+//        //metadata_pointer::MetadataPointer
+//    },
+//    state::{
+//        //Account,
+//       // Mint
+//    }
+//};
 use spl_token_interface::instruction as token_instruction;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
@@ -43,6 +43,7 @@ pub fn off_ramp_deposit(
     let asset_owner_account = next_account_info(account_info_iter)?;
     let asset_owner_token_account = next_account_info(account_info_iter)?;
     let ramp_token_account = next_account_info(account_info_iter)?;
+    let metadata_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
 
     let mut ramp_state: RampState = {
@@ -103,10 +104,12 @@ pub fn off_ramp_deposit(
     
     ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
 
-    let mint_data = asset_mint_account.try_borrow_data()?;
-    let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
+    let metadata_account_data = metadata_account.try_borrow_data()?;
 
-    let metadata = mint_state.get_variable_len_extension::<TokenMetadata>()?;
+    let metadata: TokenMetadata = borsh::from_slice(&metadata_account_data)?;
+    //let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
+
+    //let metadata = mint_state.get_variable_len_extension::<TokenMetadata>()?;
     
     msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
         borsh::to_vec(&RampDeposit {
