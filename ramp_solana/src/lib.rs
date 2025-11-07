@@ -27,10 +27,10 @@ pub mod models;
 mod test {
     use std::collections::HashMap;
 
-    use borsh::BorshDeserialize as _;
-    use mpl_token_metadata::accounts::Metadata;
-    use solana_client::nonblocking::rpc_client::RpcClient;
-    use solana_commitment_config::CommitmentConfig;
+    //use borsh::BorshDeserialize as _;
+    //use mpl_token_metadata::accounts::Metadata;
+    //use solana_client::nonblocking::rpc_client::RpcClient;
+    //use solana_commitment_config::CommitmentConfig;
     use solana_program::example_mocks::solana_sdk::system_program;
     use solana_sdk::{
         account::Account, message::{
@@ -39,10 +39,10 @@ mod test {
         }, pubkey::Pubkey, signature::{
             Keypair,
             Signer
-        }, signer::EncodableKey, transaction::Transaction
+        },// signer::EncodableKey, transaction::Transaction
     };
-    use solana_system_interface::instruction::create_account;
-    use spl_associated_token_account_interface::address::get_associated_token_address_with_program_id;
+    //use solana_system_interface::instruction::create_account;
+    //use spl_associated_token_account_interface::address::get_associated_token_address_with_program_id;
     //use spl_token_2022_interface::{
     //    extension::{
     //        metadata_pointer::{
@@ -55,16 +55,14 @@ mod test {
     //    ID as TOKEN_2022_PROGRAM_ID,
     //};
     use spl_token_interface::state::Mint;
-    use spl_token_metadata_interface::{
-        instruction::{initialize as initialize_token_metadata, update_field},
-        state::{Field, TokenMetadata},
+    //use spl_token_metadata_interface::{
+    //    instruction::{initialize as initialize_token_metadata, update_field},
+    //    state::{TokenMetadata},
 
-    };
+    //};
     use crate::{instructions::{AddAssetsInstruction, InitializeProgramInstruction, RemoveAssetsInstruction, SetActiveInstruction, SetAssetFeeInstruction, SetNativeFeePercentageInstruction, SetOwnerInstruction}, processors, state::RampState};
     use mollusk_svm::{result::Check, Mollusk, program::keyed_account_for_system_program as mollusk_system_program};
-    use mollusk_svm_programs_token::{token, token2022, associated_token};
-    use dotenv::dotenv;
-    
+    use mollusk_svm_programs_token::{token, token2022, associated_token};    
 
     #[test]
     fn set_up() {
@@ -92,8 +90,7 @@ mod test {
             )
         );
 
-        let mint_vault = (
-            associated_token::create_account_for_associated_token_account(
+        let mint_vault = associated_token::create_account_for_associated_token_account(
                 spl_token::state::Account {
                     mint: mint.0,
                     owner: payer.0,
@@ -104,30 +101,29 @@ mod test {
                     delegated_amount: 0,
                     close_authority: None.into()
                 }
-            )
-        );
+            );
 
-        let metadata  = TokenMetadata {
-            update_authority: Some(payer.0).try_into().unwrap(),
-            mint: mint.0,
-            name: "USDT COin".to_string(),
-            symbol : "USDT".to_string(),
-            uri : "https://example.com/image.json".to_string(),
-            additional_metadata: vec![("some".to_string(),"desc".to_string())]
-        };
+        //let metadata  = TokenMetadata {
+        //    update_authority: Some(payer.0).try_into().unwrap(),
+        //    mint: mint.0,
+        //    name: "USDT COin".to_string(),
+        //    symbol : "USDT".to_string(),
+        //    uri : "https://example.com/image.json".to_string(),
+        //    additional_metadata: vec![("some".to_string(),"desc".to_string())]
+        //};
 
-        let mut token_metadata = vec![0u8; metadata.tlv_size_of().unwrap()];
-        
-        
-        let metadata_account = (Pubkey::new_unique(),
-            Account {
-                lamports: 0,
-                data: borsh::to_vec(&metadata).unwrap(),
-                owner: token::ID,
-                executable: false,
-                rent_epoch: 0
-            }
-        );
+        //let mut token_metadata = vec![0u8; metadata.tlv_size_of().unwrap()];
+        //
+        //
+        //let metadata_account = (Pubkey::new_unique(),
+        //    Account {
+        //        lamports: 0,
+        //        data: borsh::to_vec(&metadata).unwrap(),
+        //        owner: token::ID,
+        //        executable: false,
+        //        rent_epoch: 0
+        //    }
+        //);
 
         let account = [
             mint.clone(),
@@ -183,7 +179,7 @@ mod test {
             (ramp_account.0, ramp_account.1),
             (mollusk_system_program()),
         ];
-        let result = client.process_instruction(&instruction, &accounts);
+        //let result = client.process_instruction(&instruction, &accounts);
         //assert!(result.program_result.is_ok(), "Failed to initialize ramp");
         client.process_and_validate_instruction(
             &instruction,

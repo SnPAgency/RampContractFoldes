@@ -12,10 +12,10 @@ use spl_token_2022_interface::{
     extension::{
         BaseStateWithExtensions,
         StateWithExtensions,
-        metadata_pointer::MetadataPointer
+        //metadata_pointer::MetadataPointer
     },
     state::{
-        Account,
+        //Account,
         Mint
     }
 };

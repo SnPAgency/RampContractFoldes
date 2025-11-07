@@ -1,11 +1,11 @@
 use solana_sdk::{
-    program_pack::Pack, pubkey::Pubkey, signature::{Keypair, Signer}, signer::EncodableKey, transaction::Transaction
+    signature::{Keypair, Signer}, signer::EncodableKey, transaction::Transaction
 };
 use solana_commitment_config::CommitmentConfig;
 use solana_system_interface::instruction::create_account;
-use spl_associated_token_account::get_associated_token_address_with_program_id;
-use spl_token::instruction::initialize_account;
-use spl_associated_token_account_interface::instruction::create_associated_token_account;
+//use spl_associated_token_account::get_associated_token_address_with_program_id;
+//use spl_token::instruction::initialize_account;
+//use spl_associated_token_account_interface::instruction::create_associated_token_account;
 //use spl_associated_token_account::get_associated_token_address;
 
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -177,11 +177,11 @@ async fn main() {
 
         // Create associated token account for the payer (owner) to hold tokens
 
-        let associated_token_address = get_associated_token_address_with_program_id(
-            &fee_payer.pubkey(),
-            &mint.pubkey(),
-            &TOKEN_2022_PROGRAM_ID,
-        );
+        //let associated_token_address = get_associated_token_address_with_program_id(
+        //    &fee_payer.pubkey(),
+        //    &mint.pubkey(),
+        //    &TOKEN_2022_PROGRAM_ID,
+        //);
 
         let create_associated_token_account_instructions = spl_associated_token_account::instruction::create_associated_token_account(
             &fee_payer.pubkey(),
