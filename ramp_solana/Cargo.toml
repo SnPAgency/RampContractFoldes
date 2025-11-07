@@ -32,6 +32,8 @@ tokio = "1.46.1"
 once_cell = "1.21.3"
 anyhow = "1.0.100"
 dotenv = "0.15.0"
+mollusk-svm = {version = "0.7.1", features = ["all-builtins"]}
+mollusk-svm-programs-token = "0.7.1"
 
 
 #binaries

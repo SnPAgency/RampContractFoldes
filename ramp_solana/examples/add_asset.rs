@@ -76,12 +76,12 @@ async fn main() {
         &add_assets_data,
         accounts
     );
-    let mut transaction = Transaction::new_with_payer(
-        &[add_assets_instruction],
-        Some(&signer_keypair.pubkey())
-    );
-    transaction.sign(&[&signer_keypair], client.get_latest_blockhash().await.unwrap());
-
-    let result = client.send_transaction(&transaction).await;
-    assert!(result.is_ok(), "{:?}", result.err().unwrap());
+        let add_assets_tx = Transaction::new_signed_with_payer(
+            &[add_assets_instruction],
+            Some(&signer_keypair.pubkey()),
+            &[&signer_keypair],
+            client.get_latest_blockhash().await.unwrap(),
+        );
+        let add_assets_result = client.send_and_confirm_transaction(&add_assets_tx).await;
+        assert!(add_assets_result.is_ok(), "{:?}", add_assets_result.err().unwrap());
 }
