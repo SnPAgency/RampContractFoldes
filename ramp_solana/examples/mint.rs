@@ -8,7 +8,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk::signature::{Keypair, Signer};
-use spl_token_interface::id as token_program;
+use spl_token_2022_interface::ID as TOKEN_2022_PROGRAM_ID;
 //use spl_associated_token_account_interface::program::id as associated_token_program;
 use spl_associated_token_account::get_associated_token_address;
 //use solana_program::config::program::ID as system_program_id;
@@ -48,22 +48,22 @@ async fn main() {
         &asset_mint_account.pubkey(),
     );
 
-    let mint_instruction = spl_token_interface::instruction::mint_to(
-        &token_program(),
-        &asset_mint_account.pubkey(),
-        &owner_token_account,
-        &signer_keypair.pubkey(),
-        &[&signer_keypair.pubkey()],
-        100000000000000000,
-    ).unwrap();
+        // Mint tokens to the payer's token account
+        let mint_instructions = spl_token_2022_interface::instruction::mint_to(
+            &TOKEN_2022_PROGRAM_ID,
+            &asset_mint_account.pubkey(),
+            &owner_token_account,
+            &signer_keypair.pubkey(),
+            &[&signer_keypair.pubkey()],
+            1000000
+        ).unwrap();
+        let mint_tokens_tx = Transaction::new_signed_with_payer(
+            &[mint_instructions],
+            Some(&signer_keypair.pubkey()),
+            &[&signer_keypair],
+            client.get_latest_blockhash().await.unwrap(),
+        );
+        let mint_result = client.send_and_confirm_transaction(&mint_tokens_tx).await;
 
-    let transaction = Transaction::new_signed_with_payer(
-        &[mint_instruction],
-        Some(&signer_keypair.pubkey()),
-        &[&signer_keypair],
-        client.get_latest_blockhash().await.unwrap(),
-    );
-
-    let result = client.send_transaction(&transaction).await;
-    assert!(result.is_ok(), "{:?}", result.err().unwrap());
+        assert!(mint_result.is_ok(), "{:?}", mint_result.err().unwrap());
 }

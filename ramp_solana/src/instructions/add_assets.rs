@@ -76,13 +76,13 @@ pub fn add_assets(
         return Err(RampError::InvalidFeePercentage.into());
     }
     
-    //if owner_token_account.key != &owner_associated_token_address {
-    //    return Err(RampError::InvalidAccountState.into());
-    //}
-    //
-    //if ramp_token_account.key != &ramp_associated_token_address {
-    //    return Err(RampError::InvalidAccountState.into());
-    //}
+    if owner_token_account.key != &owner_associated_token_address {
+        return Err(RampError::InvalidAccountState.into());
+    }
+    
+    if ramp_token_account.key != &ramp_associated_token_address {
+        return Err(RampError::InvalidAccountState.into());
+    }
     
     if ramp_token_account.lamports() == 0 {
         let account_instructions = create_associated_token_account(
