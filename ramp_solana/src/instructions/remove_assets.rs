@@ -31,10 +31,7 @@ pub fn remove_assets(
     let owner_token_account = next_account_info(account_info_iter)?;
 
     let token_program = next_account_info(account_info_iter)?;
-    // Check owner authorization
-    if !owner_account.is_signer {
-        return Err(RampError::InvalidSigner.into());
-    }
+
     // Check ramp account is signer (needed for token transfer)
     if !ramp_account.is_signer {
         return Err(RampError::InvalidSigner.into());
@@ -43,7 +40,10 @@ pub fn remove_assets(
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
-
+    // Check owner authorization
+    if owner_account.key != &ramp_state.owner {
+        return Err(RampError::Unauthorized.into());
+    }
     let ramp_associated_token_account_data = spl_token::state::Account::unpack(&ramp_associated_token_account.try_borrow_data()?)?;
 
     if ramp_associated_token_account_data.amount > 0 {

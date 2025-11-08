@@ -22,28 +22,36 @@ pub fn set_native_fee_percentage(_program_id: &Pubkey, accounts: &[AccountInfo],
         borsh::from_slice(&ramp_data)?
     };
 
-    if !owner_account.is_signer && &ramp_state.owner != owner_account.key {
-        msg!("Owner account must be signer");
-        return Err(RampError::InvalidSigner.into());
+    let (owner, signer) = (owner_account.key == &ramp_state.owner, owner_account.is_signer);
+
+    match (owner, signer) {
+        (true, true) => {
+            ramp_state.set_native_fee_percentage(args.fee_percentage);
+            
+            let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+            
+            ramp_data.fill(0);
+    
+            let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
+                msg!("Serialization failed: {:?}", e);
+                RampError::InvalidAccountState
+            })?;
+    
+            if serialized_data.len() > ramp_data.len() {
+                msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
+                return Err(RampError::InvalidAccountState.into());
+            }
+    
+            ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
+    
+            msg!("Native fee percentage set to {}", args.fee_percentage);
+            Ok(())
+        },
+        (false, _) => {
+            return Err(RampError::Unauthorized.into());
+        }
+        _ => {
+            return Err(RampError::InvalidSigner.into());
+        }
     }
-    ramp_state.set_native_fee_percentage(args.fee_percentage);
-    
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    
-    ramp_data.fill(0);
-    
-    let serialized_data = borsh::to_vec(&ramp_state).map_err(|e| {
-        msg!("Serialization failed: {:?}", e);
-        RampError::InvalidAccountState
-    })?;
-    
-    if serialized_data.len() > ramp_data.len() {
-        msg!("Insufficient account space: need {}, have {}", serialized_data.len(), ramp_data.len());
-        return Err(RampError::InvalidAccountState.into());
-    }
-    
-    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
-    
-    msg!("Native fee percentage set to {}", args.fee_percentage);
-    Ok(())
 }

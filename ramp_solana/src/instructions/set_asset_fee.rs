@@ -21,25 +21,42 @@ pub fn set_asset_fee(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetAs
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
-    if !owner_account.is_signer && &ramp_state.owner != owner_account.key && args.fee_percentage < 100 {
-        return Err(RampError::InvalidSigner.into());
-    }
-    match ramp_state.get_asset_info(&args.asset_mint) {
-        Some(asset) => {
-            asset.asset_fee_percentage = args.fee_percentage;
+
+    let (owner, signer, fee) = (
+        owner_account.key == &ramp_state.owner,
+        owner_account.is_signer,
+        args.fee_percentage < 100
+    );
+    match (owner, signer, fee) {
+        (true, true, true) => {
+            match ramp_state.get_asset_info(&args.asset_mint) {
+                Some(asset) => {
+                    asset.asset_fee_percentage = args.fee_percentage;
+                },
+                None => {
+                    return Err(RampError::AssetNotFound.into());
+                }
+            }
+            let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+            ramp_data.fill(0);
+            let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
+
+            if serialized_data.len() > ramp_data.len() {
+                return Err(RampError::InvalidAccountState.into());
+            }
+            ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
+            msg!("Asset fee set to {} for {}", args.fee_percentage, args.asset_mint);
+            Ok(())
         },
-        None => {
-            return Err(RampError::AssetNotFound.into());
+        (true, false, _) => {
+            return Err(RampError::InvalidSigner.into());
+        },
+        (false, _, _) => {
+            return Err(RampError::Unauthorized.into());
+        }
+        (true, true, false) => {
+            return Err(RampError::InvalidFeePercentage.into());
         }
     }
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
-    
-    if serialized_data.len() > ramp_data.len() {
-        return Err(RampError::InvalidAccountState.into());
-    }
-    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
-    msg!("Asset fee set to {} for {}", args.fee_percentage, args.asset_mint);
-    Ok(())
+
 }
