@@ -55,8 +55,11 @@ pub fn add_assets(
         borsh::from_slice(&ramp_data)?
     };
 
-    if  !ramp_state.is_active && !owner_account.is_signer {
+    if  !ramp_state.is_active {
         return Err(RampError::UninitializedAccount.into());
+    }
+    if owner_account.key != &ramp_state.owner {
+        return Err(RampError::Unauthorized.into());
     }
     
     //ramp asset account
@@ -71,7 +74,7 @@ pub fn add_assets(
         asset_mint_account.key,
         &spl_token_interface::ID,
     );
-    if args.fee_percentage > 10000 {
+    if args.fee_percentage > 100 {
         return Err(RampError::InvalidFeePercentage.into());
     }
     

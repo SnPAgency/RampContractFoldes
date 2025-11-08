@@ -33,46 +33,60 @@ pub fn onramp_withdraw(
         let ramp_data = ramp_account.try_borrow_data()?;
         RampState::try_from_slice(&ramp_data)?
     };
+    let (owner, signer, status) = (
+        ramp_owner.key == &ramp_state.owner,
+        ramp_owner.is_signer,
+        ramp_state.is_active
+    );
 
-    if !ramp_state.is_active && ramp_owner.key != &ramp_state.owner {
-        return Err(RampError::UninitializedAccount.into());
-    }
-
-    match ramp_state.get_asset_info_ref(asset_mint_account.key) {
-        Some(_asset) => {
-            let ramp_associated_token_account = get_associated_token_address(
-                ramp_account.key,
-                asset_mint_account.key,
-            );
-        
-            let transfer_instructions = token_instruction::transfer(
-                token_program.key,
-                &ramp_associated_token_account,
-                &asset_receiver_token_account.key,
-                ramp_account.key,
-                &[ramp_account.key],
-                args.amount,
-            )?;
-        
-            let transfer_result = invoke(
-                &transfer_instructions,
-                &[
-                    ramp_token_account.clone(),
-                    asset_receiver_token_account.clone(),
-                    ramp_account.clone(),
-                    token_program.clone(),
-                ],
-            );
-        
-            if transfer_result.is_err() {
-                return Err(RampError::TransferFailed.into());
+    match (owner, signer, status) {
+        (true, true, true) => {
+            match ramp_state.get_asset_info_ref(asset_mint_account.key) {
+                Some(_asset) => {
+                    let ramp_associated_token_account = get_associated_token_address(
+                        ramp_account.key,
+                        asset_mint_account.key,
+                    );
+                
+                    let transfer_instructions = token_instruction::transfer(
+                        token_program.key,
+                        &ramp_associated_token_account,
+                        &asset_receiver_token_account.key,
+                        ramp_account.key,
+                        &[ramp_account.key],
+                        args.amount,
+                    )?;
+                
+                    let transfer_result = invoke(
+                        &transfer_instructions,
+                        &[
+                            ramp_token_account.clone(),
+                            asset_receiver_token_account.clone(),
+                            ramp_account.clone(),
+                            token_program.clone(),
+                        ],
+                    );
+                
+                    if transfer_result.is_err() {
+                        return Err(RampError::TransferFailed.into());
+                    }
+                },
+                None => {
+                    return Err(RampError::AssetNotFound.into());
+                }
             }
-        },
-        None => {
-            return Err(RampError::AssetNotFound.into());
+            msg!("On-ramp withdraw completed successfully");  
         }
-    }
-    msg!("On-ramp withdraw completed successfully");    
+        (true, true, false) => {
+            return Err(RampError::ProgramNotActive.into());
+        }
+        (true, false, _) => {
+            return Err(RampError::InvalidSigner.into());
+        }
+        _ => {
+            return Err(RampError::Unauthorized.into());
+        }
+    }  
     Ok(())
 }
 

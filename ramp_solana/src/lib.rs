@@ -62,7 +62,7 @@ mod test {
 
     //};
     use crate::{
-        instructions::{
+        errors::RampError, instructions::{
             AddAssetsInstruction,
             InitializeProgramInstruction,
             OffRampDepositInstruction,
@@ -74,9 +74,7 @@ mod test {
             SetAssetFeeInstruction,
             SetNativeFeePercentageInstruction,
             SetOwnerInstruction
-        },
-        models::{Medium, Region},
-        processors,
+        }, models::{Medium, Region}, processors
         //state::RampState
     };
     use mollusk_svm::{result::Check, Mollusk, program::keyed_account_for_system_program as mollusk_system_program};
@@ -393,6 +391,284 @@ mod test {
         );
     }
 
+
+    #[test]
+    fn test_add_asset_incorrect_fee() {
+        let ramp_program_id = Pubkey::new_unique();
+        let ramp_account= (Pubkey::new_unique(), Account::default());
+        let payer = (Pubkey::new_unique(), Account::new(
+            1000000000000000,
+            0,
+            &mollusk_system_program().0
+        ));
+        let mint = (Pubkey::new_unique(), 
+            token::create_account_for_mint(
+            Mint {
+                    mint_authority: Some(payer.0).into(),
+                    supply: 100000000000,
+                    freeze_authority: Some(payer.0).into(),
+                    decimals: 9,
+                    is_initialized: true
+                }
+            )
+        );
+
+        let mint_vault = 
+            associated_token::create_account_for_associated_token_account(
+                spl_token::state::Account {
+                    mint: mint.0,
+                    owner: payer.0,
+                    amount: 100000000000,
+                    delegate: None.into(),
+                    state: spl_token::state::AccountState::Initialized,
+                    is_native: None.into(),
+                    delegated_amount: 0,
+                    close_authority: None.into()
+                }
+            );
+
+        let ramp_token_account = 
+            associated_token::create_account_for_associated_token_account(
+                spl_token::state::Account {
+                    mint: mint.0,
+                    owner: ramp_account.0,
+                    amount: 100000000000,
+                    delegate: None.into(),
+                    state: spl_token::state::AccountState::Initialized,
+                    is_native: None.into(),
+                    delegated_amount: 0,
+                    close_authority: None.into()
+                }
+            );
+
+        let token_program = token::keyed_account();
+
+        let system_program = mollusk_system_program();
+
+        let associated_token_program = associated_token::keyed_account();
+
+        let mut mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
+
+        token::add_program(&mut mollusk);
+        associated_token::add_program(&mut mollusk);
+
+        let mut accounts  = HashMap::new();
+        //ramp account
+        accounts.insert(ramp_account.0, ramp_account.1);
+
+        //mint
+        accounts.insert(mint.0, mint.1);
+
+        //payer
+        accounts.insert(payer.0, payer.1);
+
+        //token_program
+        accounts.insert(token_program.0, token_program.1);
+
+        //system program
+        accounts.insert(system_program.0, system_program.1);
+
+        //associated token program
+        accounts.insert(associated_token_program.0, associated_token_program.1);
+
+        //owner token account
+        accounts.insert(mint_vault.0, mint_vault.1);
+
+        //ramp token account
+        accounts.insert(ramp_token_account.0, ramp_token_account.1);
+
+        let initialize_instruction = InitializeProgramInstruction {
+            vault_address: Pubkey::new_unique(),
+            native_fee_percentage: 10,
+        };
+        let client = mollusk.with_context(accounts);
+
+
+        println!("Initialize instruction: {:?}", system_program::id());
+        let instruction = Instruction::new_with_borsh(
+            ramp_program_id,
+            &processors::Instruction::InitializeProgram(initialize_instruction),
+            vec![
+                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(payer.0, true),
+                AccountMeta::new_readonly(system_program.0, false),
+            ],
+        );
+
+        client.process_and_validate_instruction(
+            &instruction,
+            &[Check::success()]
+        );
+
+        let add_asset_instruction = AddAssetsInstruction {
+            initial_amount: 100000000,
+            fee_percentage: 2000,
+        };
+
+        let instruction = Instruction::new_with_borsh(
+            ramp_program_id,
+            &processors::Instruction::AddAssets(add_asset_instruction),
+            vec![
+                AccountMeta::new(ramp_account.0, false),
+                AccountMeta::new(mint.0, false),
+                AccountMeta::new(payer.0, true),
+                AccountMeta::new_readonly(token::ID, false),
+                AccountMeta::new_readonly(system_program.0, false),
+                AccountMeta::new_readonly(associated_token_program.0, false),
+                AccountMeta::new(mint_vault.0, false),
+                AccountMeta::new(ramp_token_account.0, false),
+            ],
+        );
+
+        client.process_and_validate_instruction(
+            &instruction,
+            &[Check::err(RampError::InvalidFeePercentage.into())]
+        );
+    }
+
+    #[test]
+    fn test_add_asset_invalid_signer() {
+            let ramp_program_id = Pubkey::new_unique();
+        let ramp_account= (Pubkey::new_unique(), Account::default());
+        let payer = (Pubkey::new_unique(), Account::new(
+            1000000000000000,
+            0,
+            &mollusk_system_program().0
+        ));
+
+        let invalid_payer = (Pubkey::new_unique(), Account::new(
+            1000000000000000,
+            0,
+            &mollusk_system_program().0
+        ));
+        let mint = (Pubkey::new_unique(), 
+            token::create_account_for_mint(
+            Mint {
+                    mint_authority: Some(payer.0).into(),
+                    supply: 100000000000,
+                    freeze_authority: Some(payer.0).into(),
+                    decimals: 9,
+                    is_initialized: true
+                }
+            )
+        );
+
+        let mint_vault = 
+            associated_token::create_account_for_associated_token_account(
+                spl_token::state::Account {
+                    mint: mint.0,
+                    owner: payer.0,
+                    amount: 100000000000,
+                    delegate: None.into(),
+                    state: spl_token::state::AccountState::Initialized,
+                    is_native: None.into(),
+                    delegated_amount: 0,
+                    close_authority: None.into()
+                }
+            );
+
+        let ramp_token_account = 
+            associated_token::create_account_for_associated_token_account(
+                spl_token::state::Account {
+                    mint: mint.0,
+                    owner: ramp_account.0,
+                    amount: 100000000000,
+                    delegate: None.into(),
+                    state: spl_token::state::AccountState::Initialized,
+                    is_native: None.into(),
+                    delegated_amount: 0,
+                    close_authority: None.into()
+                }
+            );
+
+        let token_program = token::keyed_account();
+
+        let system_program = mollusk_system_program();
+
+        let associated_token_program = associated_token::keyed_account();
+
+        let mut mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
+
+        token::add_program(&mut mollusk);
+        associated_token::add_program(&mut mollusk);
+
+        let mut accounts  = HashMap::new();
+        //ramp account
+        accounts.insert(ramp_account.0, ramp_account.1);
+
+        //mint
+        accounts.insert(mint.0, mint.1);
+
+        //payer
+        accounts.insert(payer.0, payer.1);
+
+        //token_program
+        accounts.insert(token_program.0, token_program.1);
+
+        //system program
+        accounts.insert(system_program.0, system_program.1);
+
+        //associated token program
+        accounts.insert(associated_token_program.0, associated_token_program.1);
+
+        //owner token account
+        accounts.insert(mint_vault.0, mint_vault.1);
+
+        //ramp token account
+        accounts.insert(ramp_token_account.0, ramp_token_account.1);
+
+        //invalid payer
+        accounts.insert(invalid_payer.0, invalid_payer.1);
+
+        let initialize_instruction = InitializeProgramInstruction {
+            vault_address: Pubkey::new_unique(),
+            native_fee_percentage: 10,
+        };
+        let client = mollusk.with_context(accounts);
+
+
+        println!("Initialize instruction: {:?}", system_program::id());
+        let instruction = Instruction::new_with_borsh(
+            ramp_program_id,
+            &processors::Instruction::InitializeProgram(initialize_instruction),
+            vec![
+                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(payer.0, true),
+                AccountMeta::new_readonly(system_program.0, false),
+            ],
+        );
+
+        client.process_and_validate_instruction(
+            &instruction,
+            &[Check::success()]
+        );
+
+        let add_asset_instruction = AddAssetsInstruction {
+            initial_amount: 100000000,
+            fee_percentage: 10,
+        };
+
+        let instruction = Instruction::new_with_borsh(
+            ramp_program_id,
+            &processors::Instruction::AddAssets(add_asset_instruction),
+            vec![
+                AccountMeta::new(ramp_account.0, false),
+                AccountMeta::new(mint.0, false),
+                AccountMeta::new(invalid_payer.0, true),
+                AccountMeta::new_readonly(token::ID, false),
+                AccountMeta::new_readonly(system_program.0, false),
+                AccountMeta::new_readonly(associated_token_program.0, false),
+                AccountMeta::new(mint_vault.0, false),
+                AccountMeta::new(ramp_token_account.0, false),
+            ],
+        );
+
+        client.process_and_validate_instruction(
+            &instruction,
+            &[Check::err(RampError::Unauthorized.into())]
+        );
+    }
+
         #[test]
     fn test_set_asset_fee() {
         let ramp_program_id = Pubkey::new_unique();
@@ -693,7 +969,6 @@ mod test {
 
     #[test]
     fn test_set_owner() {
-
         let ramp_program_id = Pubkey::new_unique();
         let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
@@ -1363,8 +1638,8 @@ mod test {
             &processors::Instruction::OnRampWithdrawNative(onramp_withdraw_native_instruction),
             vec![
                 AccountMeta::new(ramp_account.0, false),
+                AccountMeta::new(Pubkey::new_unique(), false),
                 AccountMeta::new(payer.0, true),
-                AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
         client.process_and_validate_instruction(

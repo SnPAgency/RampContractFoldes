@@ -32,10 +32,6 @@ pub fn initialize_program(
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
         .minimum_balance(account_space);
-
-    if !payer_account.is_signer {
-        return Err(RampError::InvalidSigner.into());
-    }
     invoke(
         &create_account(
             payer_account.key,
@@ -53,6 +49,7 @@ pub fn initialize_program(
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state = RampState::default();
+    ramp_state.is_active = true;
     ramp_state.owner = *payer_account.key;
     ramp_state.vault_address = args.vault_address;
     ramp_state.native_fee_percentage = args.native_fee_percentage;

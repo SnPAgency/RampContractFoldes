@@ -22,21 +22,29 @@ pub fn set_owner(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetOwnerI
         borsh::from_slice(&ramp_data)
     }?;
 
-    if !current_owner_account.is_signer {
-        return Err(RampError::InvalidSigner.into());
-    }
+    let (owner, signer) = (current_owner_account.key == &ramp_state.owner, current_owner_account.is_signer);
 
-    ramp_state.set_new_owner(args.new_owner);
-    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-    ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
+    match (owner, signer) {
+        (true, true) => {
+            ramp_state.set_new_owner(args.new_owner);
+            let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+            ramp_data.fill(0);
+            let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
     
-    if serialized_data.len() > ramp_data.len() {
-        return Err(RampError::InvalidAccountState.into());
-    }
+            if serialized_data.len() > ramp_data.len() {
+                return Err(RampError::InvalidAccountState.into());
+            }
     
-    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
+            ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
 
-    msg!("Ramp account owner set to {}", args.new_owner);
-    Ok(())
+            msg!("Ramp account owner set to {}", args.new_owner);
+            Ok(())
+        },
+        (false, _) => {
+            return Err(RampError::Unauthorized.into());
+        }
+        _ => {
+            return Err(RampError::InvalidSigner.into());
+        }
+    }
 }
