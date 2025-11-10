@@ -36,10 +36,7 @@ mod test {
         account::Account, message::{
             AccountMeta,
             Instruction
-        }, pubkey::Pubkey, signature::{
-            Keypair,
-            Signer
-        },// signer::EncodableKey, transaction::Transaction
+        }, pubkey::Pubkey,
     };
     //use solana_system_interface::instruction::create_account;
     //use spl_associated_token_account_interface::address::get_associated_token_address_with_program_id;
@@ -107,40 +104,17 @@ mod test {
         );
 
         let mint_vault = associated_token::create_account_for_associated_token_account(
-                spl_token::state::Account {
-                    mint: mint.0,
-                    owner: payer.0,
-                    amount: 100000000000,
-                    delegate: None.into(),
-                    state: spl_token::state::AccountState::Initialized,
-                    is_native: None.into(),
-                    delegated_amount: 0,
-                    close_authority: None.into()
-                }
-            );
-
-        //let metadata  = TokenMetadata {
-        //    update_authority: Some(payer.0).try_into().unwrap(),
-        //    mint: mint.0,
-        //    name: "USDT COin".to_string(),
-        //    symbol : "USDT".to_string(),
-        //    uri : "https://example.com/image.json".to_string(),
-        //    additional_metadata: vec![("some".to_string(),"desc".to_string())]
-        //};
-
-        //let mut token_metadata = vec![0u8; metadata.tlv_size_of().unwrap()];
-        //
-        //
-        //let metadata_account = (Pubkey::new_unique(),
-        //    Account {
-        //        lamports: 0,
-        //        data: borsh::to_vec(&metadata).unwrap(),
-        //        owner: token::ID,
-        //        executable: false,
-        //        rent_epoch: 0
-        //    }
-        //);
-
+            spl_token::state::Account {
+                mint: mint.0,
+                owner: payer.0,
+                amount: 100000000000,
+                delegate: None.into(),
+                state: spl_token::state::AccountState::Initialized,
+                is_native: None.into(),
+                delegated_amount: 0,
+                close_authority: None.into()
+            }
+        );
         let account = [
             mint.clone(),
             mint_vault.clone(),
@@ -162,20 +136,23 @@ mod test {
     #[test]
     fn test_initialize_ramp() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account=  (
-            Pubkey::new_unique(),
-            Account::default()
-        );
-        let payer = Keypair::new();
+
+        let payer = Pubkey::new_unique();
         let payer_account = Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         );
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.as_ref()], &ramp_program_id);   
+        let ramp_account=  (
+            ramp_pda.0,
+            Account::default()
+        );
 
         let client = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -183,13 +160,13 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
-                AccountMeta::new(payer.pubkey(), true),
+                AccountMeta::new(ramp_account.0, false),
+                AccountMeta::new(payer, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
         let accounts = [
-            (payer.pubkey(), payer_account),
+            (payer, payer_account),
             (ramp_account.0, ramp_account.1),
             (mollusk_system_program()),
         ];
@@ -205,12 +182,15 @@ mod test {
     #[test]
     fn test_set_active() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
+
+
         let system_program = mollusk_system_program();
 
         let mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
@@ -221,6 +201,7 @@ mod test {
         accounts.insert(system_program.0, system_program.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -229,7 +210,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
@@ -256,16 +237,17 @@ mod test {
             &[Check::success()]
         );
     }
-
     #[test]
     fn test_add_asset() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
+
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -305,6 +287,7 @@ mod test {
                     close_authority: None.into()
                 }
             );
+        
 
         let token_program = token::keyed_account();
 
@@ -343,18 +326,17 @@ mod test {
         accounts.insert(ramp_token_account.0, ramp_token_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
         let client = mollusk.with_context(accounts);
 
-
-        println!("Initialize instruction: {:?}", system_program::id());
         let instruction = Instruction::new_with_borsh(
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program.0, false),
             ],
@@ -395,12 +377,14 @@ mod test {
     #[test]
     fn test_add_asset_incorrect_fee() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
+
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -440,6 +424,7 @@ mod test {
                     close_authority: None.into()
                 }
             );
+        
 
         let token_program = token::keyed_account();
 
@@ -478,18 +463,17 @@ mod test {
         accounts.insert(ramp_token_account.0, ramp_token_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
         let client = mollusk.with_context(accounts);
 
-
-        println!("Initialize instruction: {:?}", system_program::id());
         let instruction = Instruction::new_with_borsh(
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program.0, false),
             ],
@@ -526,15 +510,17 @@ mod test {
         );
     }
 
+
     #[test]
     fn test_add_asset_invalid_signer() {
-            let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
+        let ramp_program_id = Pubkey::new_unique();
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
 
         let invalid_payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
@@ -621,18 +607,18 @@ mod test {
         accounts.insert(invalid_payer.0, invalid_payer.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
         let client = mollusk.with_context(accounts);
 
 
-        println!("Initialize instruction: {:?}", system_program::id());
         let instruction = Instruction::new_with_borsh(
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program.0, false),
             ],
@@ -672,12 +658,13 @@ mod test {
         #[test]
     fn test_set_asset_fee() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -755,6 +742,7 @@ mod test {
         accounts.insert(ramp_token_account.0, ramp_token_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -763,9 +751,9 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
-                AccountMeta::new_readonly(system_program.0, false),
+                AccountMeta::new_readonly(system_program::id(), false),
             ],
         );
 
@@ -819,12 +807,13 @@ mod test {
     #[test]
     fn test_remove_asset() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -902,6 +891,7 @@ mod test {
         accounts.insert(ramp_token_account.0, ramp_token_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -970,12 +960,13 @@ mod test {
     #[test]
     fn test_set_owner() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let system_program = mollusk_system_program();
 
         let mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
@@ -987,6 +978,7 @@ mod test {
         let client = mollusk.with_context(accounts);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -994,7 +986,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
@@ -1023,12 +1015,13 @@ mod test {
     #[test]
     fn test_set_native_fee() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let system_program = mollusk_system_program();
 
         let mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
@@ -1040,6 +1033,7 @@ mod test {
         let client = mollusk.with_context(accounts);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -1047,7 +1041,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
@@ -1076,12 +1070,13 @@ mod test {
     #[test]
     fn test_off_ramp_deposit() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -1178,6 +1173,7 @@ mod test {
         accounts.insert(metadata_account.0, metadata_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -1187,7 +1183,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program.0, false),
             ],
@@ -1269,12 +1265,13 @@ mod test {
     #[test]
     fn test_off_ramp_deposit_native() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let system_program = mollusk_system_program();
 
         let mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
@@ -1285,6 +1282,7 @@ mod test {
         accounts.insert(system_program.0, system_program.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -1293,7 +1291,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
@@ -1344,12 +1342,13 @@ mod test {
     #[test]
     fn test_onramp_withdraw() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let mint = (Pubkey::new_unique(), 
             token::create_account_for_mint(
             Mint {
@@ -1446,6 +1445,7 @@ mod test {
         accounts.insert(metadata_account.0, metadata_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -1455,7 +1455,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program.0, false),
             ],
@@ -1559,12 +1559,13 @@ mod test {
     #[test]
     fn test_onramp_withdraw_native() {
         let ramp_program_id = Pubkey::new_unique();
-        let ramp_account= (Pubkey::new_unique(), Account::default());
         let payer = (Pubkey::new_unique(), Account::new(
             1000000000000000,
             0,
             &mollusk_system_program().0
         ));
+        let ramp_pda= Pubkey::find_program_address(&[b"ramp", &payer.0.as_ref()], &ramp_program_id);
+        let ramp_account = (ramp_pda.0, Account::default());
         let system_program = mollusk_system_program();
 
         let mollusk = Mollusk::new(&ramp_program_id, "target/deploy/ramp_solana");
@@ -1575,6 +1576,7 @@ mod test {
         accounts.insert(system_program.0, system_program.1);
 
         let initialize_instruction = InitializeProgramInstruction {
+            bump: ramp_pda.1,
             vault_address: Pubkey::new_unique(),
             native_fee_percentage: 10,
         };
@@ -1583,7 +1585,7 @@ mod test {
             ramp_program_id,
             &processors::Instruction::InitializeProgram(initialize_instruction),
             vec![
-                AccountMeta::new(ramp_account.0, true),
+                AccountMeta::new(ramp_account.0, false),
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],

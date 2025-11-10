@@ -1,5 +1,5 @@
-use crate::{errors::RampError, models::{Medium, Region}, state::RampState};
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{errors::RampError, instructions::OffRampDepositInstruction, state::RampState};
+use borsh::BorshSerialize;
 use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, 
@@ -8,31 +8,22 @@ use solana_program::{
     program::invoke,
 };
 use spl_associated_token_account::get_associated_token_address;
-//use spl_token_2022_interface::{
-//    extension::{
-//        //BaseStateWithExtensions,
-//        //StateWithExtensions,
-//        //metadata_pointer::MetadataPointer
-//    },
-//    state::{
-//        //Account,
-//       // Mint
-//    }
-//};
+use spl_token_2022_interface::{
+    extension::{
+        BaseStateWithExtensions,
+        StateWithExtensions,
+    },
+    state::{
+        Mint
+    }
+};
 use spl_token_interface::instruction as token_instruction;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
 use spl_token_metadata_interface::state::TokenMetadata;
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct OffRampDepositInstruction {
-    pub amount: u64,
-    pub region: Region,
-    pub medium: Medium,
-    pub data: Vec<u8>,
-}
 
-pub fn off_ramp_deposit(
+pub fn off_ramp_deposit_token_22(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     args: OffRampDepositInstruction
@@ -43,7 +34,6 @@ pub fn off_ramp_deposit(
     let asset_owner_account = next_account_info(account_info_iter)?;
     let asset_owner_token_account = next_account_info(account_info_iter)?;
     let ramp_token_account = next_account_info(account_info_iter)?;
-    let metadata_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
 
     let mut ramp_state: RampState = {
@@ -52,6 +42,16 @@ pub fn off_ramp_deposit(
     };
     if !ramp_state.is_active {
         return Err(RampError::ProgramNotActive.into());
+    }
+    
+    match ramp_state.get_asset_info(asset_mint_account.clone().key) {
+        Some(asset) => {
+            let revenue = (args.amount as u128) * (asset.get_fee_percentage() / 100);
+            asset.add_revenue(revenue);
+        },
+        None => {
+            return Err(RampError::AssetNotFound.into());
+        }
     }
 
     let ramp_associated_token_account = get_associated_token_address(
@@ -80,28 +80,19 @@ pub fn off_ramp_deposit(
     if transfer_result.is_err() {
         return Err(RampError::TransferFailed.into());
     }
-    match ramp_state.get_asset_info(asset_mint_account.clone().key) {
-        Some(asset) => {
-            let revenue = (args.amount as u128) * (asset.get_fee_percentage() / 100);
-            asset.add_revenue(revenue);
-        },
-        None => {
-            return Err(RampError::AssetNotFound.into());
-        }
-    }
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-
     ramp_state.serialize(&mut ramp_data.as_mut())?;
 
-    let metadata_account_data = metadata_account.try_borrow_data()?;
+    let mint_data = asset_mint_account.try_borrow_data()?;
+    let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
 
-    let metadata: TokenMetadata = borsh::from_slice(&metadata_account_data)?;
+    let metadata = mint_state.get_variable_len_extension::<TokenMetadata>()?;
     
     msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
         borsh::to_vec(&RampDeposit {
             asset: metadata.mint,
-            asset_name: "".to_string(),
+            asset_name: metadata.name,
             amount: args.amount,
             sender: *asset_owner_account.key,
             region: args.region,

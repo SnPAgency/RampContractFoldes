@@ -3,8 +3,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RampError {
-    #[error("Invalid instruction")]
-    InvalidInstruction,
+    //#[error("Invalid instruction")]
+    //InvalidInstruction,
 
     #[error("Account data is not initialized")]
     UninitializedAccount,

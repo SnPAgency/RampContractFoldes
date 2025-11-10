@@ -1,8 +1,7 @@
 use once_cell::sync::Lazy;
-use ramp_solana::{processors, state::RampState};
+use ramp_solana::processors;
 use solana_commitment_config::CommitmentConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_system_interface::program::ID as system_program_id;
 use solana_sdk::{
     instruction::{
         AccountMeta, Instruction
@@ -10,9 +9,8 @@ use solana_sdk::{
 };
 use solana_sdk::signature::{Keypair, Signer};
 use spl_token_interface::id as token_program;
-use spl_associated_token_account_interface::program::id as associated_token_program;
 use spl_associated_token_account::get_associated_token_address_with_program_id;
-use spl_token_interface::ID as TOKEN_PROGRAM_ID;
+use spl_token_2022_interface::ID as TOKEN_PROGRAM_ID;
 
 static SOLANA_MAINNET_URL: Lazy<String> = Lazy::new(|| "https://api.mainnet-beta.solana.com".to_string());
 static SOLANA_TESTNET_URL: Lazy<String> = Lazy::new(|| "https://api.testnet.solana.com".to_string());
@@ -49,11 +47,6 @@ async fn main() {
         b"ramp",signer_keypair.pubkey().as_ref()],
         &ramp_program_id
     );
-
-    let add_assets_data = ramp_solana::instructions::AddAssetsInstruction {
-        initial_amount: 100000,
-        fee_percentage: 10,
-    };
     let owner_token_account = get_associated_token_address_with_program_id(
         &signer_keypair.pubkey(),
         &asset_mint_account.pubkey(),
@@ -64,29 +57,31 @@ async fn main() {
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );
-
+    let off_ramp_deposit_data = ramp_solana::instructions::OffRampDepositInstruction {
+        amount: 100000,
+        region: ramp_solana::models::Region::EGY,
+        medium: ramp_solana::models::Medium::Primary,
+        data: b"".to_vec(),
+    };
     let accounts = vec![
         AccountMeta::new(ramp_account.0, false),
         AccountMeta::new(asset_mint_account.pubkey(), false),
         AccountMeta::new(signer_keypair.pubkey(), true),
-        AccountMeta::new_readonly(token_program(), false),
-        AccountMeta::new_readonly(system_program_id, false),
-        AccountMeta::new_readonly(associated_token_program(), false),
         AccountMeta::new(owner_token_account, false),
         AccountMeta::new(ramp_token_account, false),
+        AccountMeta::new_readonly(token_program(), false),
     ];
-
-    let add_assets_instruction = Instruction::new_with_borsh(
+    let off_ramp_deposit_instruction = Instruction::new_with_borsh(
         ramp_program_id,
-        &processors::Instruction::AddAssets(add_assets_data),
+        &processors::Instruction::OffRampDeposit(off_ramp_deposit_data),
         accounts
     );
-    let add_assets_tx = Transaction::new_signed_with_payer(
-        &[add_assets_instruction],
+    let off_ramp_deposit_tx = Transaction::new_signed_with_payer(
+        &[off_ramp_deposit_instruction],
         Some(&signer_keypair.pubkey()),
         &[&signer_keypair],
         client.get_latest_blockhash().await.unwrap(),
     );
-    let add_assets_result = client.send_and_confirm_transaction(&add_assets_tx).await;
-    assert!(add_assets_result.is_ok(), "{:?}", add_assets_result.err().unwrap());
+    let off_ramp_deposit_result = client.send_and_confirm_transaction(&off_ramp_deposit_tx).await;
+    assert!(off_ramp_deposit_result.is_ok(), "{:?}", off_ramp_deposit_result.err().unwrap());
 }

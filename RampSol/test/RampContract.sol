@@ -70,7 +70,7 @@ contract RampContractTestFunctionality is Test {
         vm.stopPrank();
     }
 
-    function test_onramp_native() public {
+    function test_offramp_native() public {
         vm.startPrank(nonOwner);
         uint256 balance = address(rampContract).balance;
         vm.deal(nonOwner, 100);
@@ -80,10 +80,10 @@ contract RampContractTestFunctionality is Test {
         (uint256 fee, uint256 amountAfterFee) = rampContract.amountAfterFees(1, 90);
         vm.expectEmit(true, true, false, true);
         emit IRampContract.RampDeposit(
-            address(address(0)),
+            address(0),
             nonOwner,
             amountAfterFee,
-            "NATIVE",
+            "ETH",
             IRampContract.OnrampMedium.Primary,
             IRampContract.Region.KEN,
             ""
@@ -189,7 +189,7 @@ contract RampContractTestFunctionality is Test {
         vm.stopPrank();
     }
 
-    function test_offram_native() public {
+    function test_onramp_native() public {
         vm.startPrank(controller);
         uint256 balance = address(rampContract).balance;
         uint256 userBalance = nonOwner.balance;
