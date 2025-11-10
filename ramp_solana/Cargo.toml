@@ -55,3 +55,31 @@ path = "examples/add_asset.rs"
 [[example]]
 name = "mint"
 path = "examples/mint.rs"
+
+[[example]]
+name = "create_token_2022"
+path = "examples/create_token_2022.rs"
+
+[[example]]
+name = "create_metadata"
+path = "examples/create_metadata.rs"
+
+[[example]]
+name = "mint_2022"
+path = "examples/mint_2022.rs"
+
+[[example]]
+name = "onramp"
+path = "examples/onramp.rs"
+
+[[example]]
+name = "off_ramp_deposit_2022"
+path = "examples/off_ramp_deposit_2022.rs"
+
+[[example]]
+name = "onramp_native"
+path = "examples/onramp_native.rs"
+
+[[example]]
+name = "off_ramp_native"
+path = "examples/off_ramp_native.rs"

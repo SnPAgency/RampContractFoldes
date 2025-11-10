@@ -11,7 +11,7 @@ use {
             set_asset_fee,
             set_native_fee_percentage,
             set_owner,
-            //token_transfers,
+            off_ramp_deposit_token22,
             AddAssetsInstruction,
             InitializeProgramInstruction,
             OffRampDepositInstruction,
@@ -23,7 +23,6 @@ use {
             SetAssetFeeInstruction,
             SetNativeFeePercentageInstruction,
             SetOwnerInstruction,
-            //TransferTokensArgs
         },
         borsh::{BorshDeserialize, BorshSerialize},
         solana_program::{
@@ -44,7 +43,7 @@ pub enum Instruction {
     SetOwner(SetOwnerInstruction),
     AddAssets(AddAssetsInstruction),
     InitializeProgram(InitializeProgramInstruction),
-    //TransferTokens(TransferTokensArgs),
+    OffRampDepositToken22(OffRampDepositInstruction),
     OffRampDeposit(OffRampDepositInstruction),
     OnRampWithdraw(OnRampWithdrawInstruction),
     OffRampDepositNative(OffRampDepositNativeInstruction),
@@ -96,9 +95,13 @@ pub fn process_instruction(
                 args
             )
         },
-        //Instruction::TransferTokens(args) => {
-        //    token_transfers::transfer_tokens(accounts, args)
-        //},
+        Instruction::OffRampDepositToken22(args) => {
+            off_ramp_deposit_token22::off_ramp_deposit_token_22(
+                program_id,
+                accounts,
+                args
+            )
+        },
         Instruction::OffRampDeposit(args) => {
             off_ramp_deposit::off_ramp_deposit(
                 program_id,

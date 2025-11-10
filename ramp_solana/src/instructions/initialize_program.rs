@@ -1,18 +1,22 @@
 use crate::{errors::RampError, state::RampState};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    account_info::{next_account_info, AccountInfo}, 
-    entrypoint::ProgramResult, 
-    msg, 
-    program::invoke,
-    rent::Rent, 
-    sysvar::Sysvar,
+    account_info::{
+        AccountInfo,
+        next_account_info
+    },
+    entrypoint::ProgramResult,
+    msg,
+    program::invoke_signed,
+    rent::Rent,
+    sysvar::Sysvar
 };
 use solana_system_interface::instruction::create_account;
 use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct InitializeProgramInstruction {
+    pub bump: u8,
     pub vault_address: Pubkey,
     pub native_fee_percentage: u128,
 }
@@ -32,7 +36,7 @@ pub fn initialize_program(
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
         .minimum_balance(account_space);
-    invoke(
+    invoke_signed(
         &create_account(
             payer_account.key,
             ramp_account.key,
@@ -45,6 +49,7 @@ pub fn initialize_program(
             ramp_account.clone(),
             system_program_account.clone(),
         ],
+        &[&[b"ramp", payer_account.key.as_ref(), &[args.bump]]],
     )?;
 
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
@@ -53,14 +58,8 @@ pub fn initialize_program(
     ramp_state.owner = *payer_account.key;
     ramp_state.vault_address = args.vault_address;
     ramp_state.native_fee_percentage = args.native_fee_percentage;
-    
-    ramp_data.fill(0);
-    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
-    
-    if serialized_data.len() > ramp_data.len() {
-        return Err(RampError::InvalidAccountState.into());
-    }
-    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);
+
+    ramp_state.serialize(&mut ramp_data.as_mut())?;
 
     msg!("Ramp account initialized");
     Ok(())

@@ -7,10 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
     program::invoke,
 };
-use spl_associated_token_account::{
-    get_associated_token_address_with_program_id,
-    instruction::create_associated_token_account
-}; 
+use spl_associated_token_account::instruction::create_associated_token_account;
 use spl_token_interface::instruction::transfer;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -24,6 +21,7 @@ pub fn add_assets(
     accounts: &[AccountInfo],
     args: AddAssetsInstruction
 ) -> ProgramResult {
+
     let account_info_iter = &mut accounts.iter();
 
     //recepient account
@@ -49,6 +47,10 @@ pub fn add_assets(
     // ramp's associated token account (will be created if doesn't exist)
     let ramp_token_account = next_account_info(account_info_iter)?;
 
+    if args.fee_percentage > 100 {
+        return Err(RampError::InvalidFeePercentage.into());
+    }
+
     // First, read and verify the ramp state
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
@@ -60,30 +62,6 @@ pub fn add_assets(
     }
     if owner_account.key != &ramp_state.owner {
         return Err(RampError::Unauthorized.into());
-    }
-    
-    //ramp asset account
-    let ramp_associated_token_address = get_associated_token_address_with_program_id(
-        ramp_account.key,
-        asset_mint_account.key,
-        &spl_token_interface::ID,
-    );
-    //sender asset account
-    let owner_associated_token_address = get_associated_token_address_with_program_id(
-        owner_account.key,
-        asset_mint_account.key,
-        &spl_token_interface::ID,
-    );
-    if args.fee_percentage > 100 {
-        return Err(RampError::InvalidFeePercentage.into());
-    }
-    
-    if owner_token_account.key != &owner_associated_token_address {
-        return Err(RampError::InvalidAccountState.into());
-    }
-    
-    if ramp_token_account.key != &ramp_associated_token_address {
-        return Err(RampError::InvalidAccountState.into());
     }
     
     if ramp_token_account.lamports() == 0 {
