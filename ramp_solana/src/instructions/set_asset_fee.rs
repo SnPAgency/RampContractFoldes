@@ -13,7 +13,11 @@ pub struct SetAssetFeeInstruction {
     pub fee_percentage: u128,
 }
 
-pub fn set_asset_fee(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetAssetFeeInstruction) -> ProgramResult {
+pub fn set_asset_fee(
+    _program_id: &Pubkey, 
+    accounts: &[AccountInfo], 
+    args: SetAssetFeeInstruction
+) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let owner_account = next_account_info(account_info_iter)?;    
@@ -21,7 +25,6 @@ pub fn set_asset_fee(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetAs
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
-
     let (owner, signer, fee) = (
         owner_account.key == &ramp_state.owner,
         owner_account.is_signer,

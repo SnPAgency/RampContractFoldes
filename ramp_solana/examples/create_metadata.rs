@@ -1,9 +1,9 @@
 use once_cell::sync::Lazy;
 use solana_commitment_config::CommitmentConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_system_interface::{instruction::create_account};
+//use solana_system_interface::{instruction::create_account};
 use solana_sdk::{
-    pubkey::Pubkey, signer::EncodableKey, transaction::Transaction
+    signer::EncodableKey, transaction::Transaction
 };
 use solana_sdk::signature::{Keypair, Signer};
 use spl_token_interface::ID as TOKEN_PROGRAM_ID;
@@ -65,7 +65,7 @@ async fn main() {
         uri : "https://example.com/image.json".to_string(),
         additional_metadata: vec![("some".to_string(),"desc".to_string())]
     };
-    let metadata_rent = client.get_minimum_balance_for_rent_exemption(token_metadata.tlv_size_of().unwrap()).await.unwrap();
+    //let metadata_rent = client.get_minimum_balance_for_rent_exemption(token_metadata.tlv_size_of().unwrap()).await.unwrap();
     // Instruction to initialize token metadata
     let initialize_metadata_instruction = initialize_token_metadata(
         &TOKEN_PROGRAM_ID,            
@@ -78,27 +78,8 @@ async fn main() {
         token_metadata.uri.to_string(),
     );
 
-    let accp = Pubkey::try_from(*mpl_token_metadata::ID.as_array()).unwrap();
-    let create_metadata_account_instruction = create_account(
-        &fee_payer.pubkey(),    
-        &metadata.pubkey(),         
-        metadata_rent,              
-        token_metadata.tlv_size_of().unwrap() as u64,      
-        &accp, 
-    );
-
-    let met_acc_tx = Transaction::new_signed_with_payer(
-        &[create_metadata_account_instruction],
-        Some(&fee_payer.pubkey()),
-        &[&fee_payer, &metadata],
-        client.get_latest_blockhash().await.unwrap(),
-    );
-    let met_acc_tx_signature = client.send_and_confirm_transaction(&met_acc_tx).await;
-    assert!(met_acc_tx_signature.is_ok(), "{:?}", met_acc_tx_signature.err().unwrap());
-    let met_ix = vec![initialize_metadata_instruction];
-
     let metadata_tx = Transaction::new_signed_with_payer(
-        &met_ix,
+        &[initialize_metadata_instruction],
         Some(&fee_payer.pubkey()),
         &[&fee_payer],
         client.get_latest_blockhash().await.unwrap(),

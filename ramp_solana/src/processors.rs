@@ -1,6 +1,7 @@
 use {
     crate::instructions::{
             add_assets,
+            add_asset_2022,
             initialize_program,
             off_ramp_deposit,
             off_ramp_deposit_native,
@@ -42,6 +43,7 @@ pub enum Instruction {
     RemoveAssets(RemoveAssetsInstruction),
     SetOwner(SetOwnerInstruction),
     AddAssets(AddAssetsInstruction),
+    AddAssets2022(AddAssetsInstruction),
     InitializeProgram(InitializeProgramInstruction),
     OffRampDepositToken22(OffRampDepositInstruction),
     OffRampDeposit(OffRampDepositInstruction),
@@ -83,6 +85,13 @@ pub fn process_instruction(
         },
         Instruction::AddAssets(args) => {
             add_assets::add_assets(
+                program_id,
+                accounts,
+                args
+            )
+        },
+        Instruction::AddAssets2022(args) => {
+            add_asset_2022::add_assets_2022(
                 program_id,
                 accounts,
                 args

@@ -30,9 +30,7 @@ pub fn initialize_program(
     let ramp_account = next_account_info(account_info_iter)?;
     let payer_account = next_account_info(account_info_iter)?;
     let system_program_account = next_account_info(account_info_iter)?;
-
     let account_space = borsh::to_vec(&RampState::default()).unwrap().len();
-
     let rent_required = Rent::get()
         .map_err(|_| RampError::RentError)?
         .minimum_balance(account_space);
@@ -51,16 +49,13 @@ pub fn initialize_program(
         ],
         &[&[b"ramp", payer_account.key.as_ref(), &[args.bump]]],
     )?;
-
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
     let mut ramp_state = RampState::default();
     ramp_state.is_active = true;
     ramp_state.owner = *payer_account.key;
     ramp_state.vault_address = args.vault_address;
     ramp_state.native_fee_percentage = args.native_fee_percentage;
-
     ramp_state.serialize(&mut ramp_data.as_mut())?;
-
-    msg!("Ramp account initialized");
+    msg!("account initialized");
     Ok(())
 }

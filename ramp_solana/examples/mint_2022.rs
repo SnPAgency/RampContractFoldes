@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use solana_commitment_config::CommitmentConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     signer::EncodableKey,
     transaction::Transaction,
@@ -47,36 +48,39 @@ async fn main() {
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );
-    let create_associated_token_account_instructions = create_associated_token_account(
+    let create_owner_associated_token_account_instructions = create_associated_token_account(
         &signer_keypair.pubkey(),
         &signer_keypair.pubkey(),
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );
-    let create_associated_token_account_transaction = Transaction::new_signed_with_payer(
-        &[create_associated_token_account_instructions],
+    let create_owner_associated_token_account_transaction = Transaction::new_signed_with_payer(
+        &[create_owner_associated_token_account_instructions],
         Some(&signer_keypair.pubkey()),
         &[&signer_keypair],
         client.get_latest_blockhash().await.unwrap(),
     );
-    let create_associated_token_account_result = client.send_and_confirm_transaction(&create_associated_token_account_transaction).await;
-    assert!(create_associated_token_account_result.is_ok(), "{:?}", create_associated_token_account_result.err().unwrap());
-
+    let create_owner_associated_token_account_result = client.send_and_confirm_transaction(&create_owner_associated_token_account_transaction).await;
+    assert!(create_owner_associated_token_account_result.is_ok(), "{:?}", create_owner_associated_token_account_result.err().unwrap());
+    let ramp_account = Pubkey::find_program_address(&[
+        b"ramp",signer_keypair.pubkey().as_ref()],
+        &ramp_program_id
+    );
     let create_ramp_associated_token_account_instructions = create_associated_token_account(
         &signer_keypair.pubkey(),
-        &&ramp_program_id,
+        &ramp_account.0,
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );
-    let create_associated_token_account_transaction = Transaction::new_signed_with_payer(
+    let create_ramp_associated_token_account_transaction = Transaction::new_signed_with_payer(
         &[create_ramp_associated_token_account_instructions],
         Some(&signer_keypair.pubkey()),
         &[&signer_keypair],
         client.get_latest_blockhash().await.unwrap(),
     );
-    let create_associated_token_account_result = client.send_and_confirm_transaction(&create_associated_token_account_transaction).await;
-    assert!(create_associated_token_account_result.is_ok(), "{:?}", create_associated_token_account_result.err().unwrap());
-    //Mint tokens to the payer's token account
+    let create_ramp_associated_token_account_result = client.send_and_confirm_transaction(&create_ramp_associated_token_account_transaction).await;
+    assert!(create_ramp_associated_token_account_result.is_ok(), "{:?}", create_ramp_associated_token_account_result.err().unwrap());
+    // Mint tokens to the payer's token account
     let mint_instructions = mint_to(
         &TOKEN_PROGRAM_ID,
         &asset_mint_account.pubkey(),

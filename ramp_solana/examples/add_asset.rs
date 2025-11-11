@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use ramp_solana::{processors, state::RampState};
+use ramp_solana::processors;
 use solana_commitment_config::CommitmentConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_system_interface::program::ID as system_program_id;
@@ -43,7 +43,7 @@ async fn main() {
     let client = get_client("local");
     let signer_keypair = Keypair::read_from_file("keys/dev-keypair.json").unwrap();
     let ramp_program_id = Keypair::read_from_file("target/deploy/ramp_solana-keypair.json").unwrap().pubkey();
-    let asset_mint_account = Keypair::read_from_file("keys/token_keypair_2022.json").unwrap();
+    let asset_mint_account = Keypair::read_from_file("keys/token_keypair.json").unwrap();
 
     let ramp_account = Pubkey::find_program_address(&[
         b"ramp",signer_keypair.pubkey().as_ref()],
@@ -51,7 +51,7 @@ async fn main() {
     );
 
     let add_assets_data = ramp_solana::instructions::AddAssetsInstruction {
-        initial_amount: 100000,
+        initial_amount: 1000,
         fee_percentage: 10,
     };
     let owner_token_account = get_associated_token_address_with_program_id(
@@ -60,7 +60,7 @@ async fn main() {
         &TOKEN_PROGRAM_ID,
     );
     let ramp_token_account = get_associated_token_address_with_program_id(
-        &ramp_program_id,
+        &ramp_account.0,
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );

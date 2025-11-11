@@ -38,7 +38,8 @@ async fn main() {
     let client = get_client("local");
     let signer_keypair = Keypair::read_from_file("keys/dev-keypair.json").unwrap();
     let asset_mint_account = Keypair::read_from_file("keys/token_keypair.json").unwrap();
-    let ramp_program_id = Keypair::read_from_file("target/deploy/ramp_solana-keypair.json").unwrap().pubkey();
+    //let ramp_program_id = Keypair::read_from_file("target/deploy/ramp_solana-keypair.json").unwrap().pubkey();
+    let ramp_account = Keypair::read_from_file("keys/ramp_account-keypair.json").unwrap().pubkey();
 
     let owner_token_account = get_associated_token_address_with_program_id(
         &signer_keypair.pubkey(),
@@ -63,7 +64,7 @@ async fn main() {
 
     let create_ramp_associated_token_account_instructions = spl_associated_token_account::instruction::create_associated_token_account(
         &signer_keypair.pubkey(),
-        &&ramp_program_id,
+        &ramp_account,
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );

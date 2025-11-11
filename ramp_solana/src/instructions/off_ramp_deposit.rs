@@ -22,7 +22,7 @@ use spl_associated_token_account::get_associated_token_address;
 use spl_token_interface::instruction as token_instruction;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
-use spl_token_metadata_interface::state::TokenMetadata;
+//use spl_token_metadata_interface::state::TokenMetadata;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct OffRampDepositInstruction {
@@ -43,7 +43,7 @@ pub fn off_ramp_deposit(
     let asset_owner_account = next_account_info(account_info_iter)?;
     let asset_owner_token_account = next_account_info(account_info_iter)?;
     let ramp_token_account = next_account_info(account_info_iter)?;
-    let metadata_account = next_account_info(account_info_iter)?;
+    //let metadata_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
 
     let mut ramp_state: RampState = {
@@ -94,13 +94,13 @@ pub fn off_ramp_deposit(
 
     ramp_state.serialize(&mut ramp_data.as_mut())?;
 
-    let metadata_account_data = metadata_account.try_borrow_data()?;
+    //let metadata_account_data = metadata_account.try_borrow_data()?;
 
-    let metadata: TokenMetadata = borsh::from_slice(&metadata_account_data)?;
+    //let metadata: TokenMetadata = borsh::from_slice(&metadata_account_data)?;
     
     msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
         borsh::to_vec(&RampDeposit {
-            asset: metadata.mint,
+            asset: *asset_mint_account.key,
             asset_name: "".to_string(),
             amount: args.amount,
             sender: *asset_owner_account.key,

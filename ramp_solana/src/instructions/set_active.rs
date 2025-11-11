@@ -13,7 +13,11 @@ pub struct SetActiveInstruction {
 }
 
 
-pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiveInstruction) -> ProgramResult {
+pub fn set_active(
+    _program_id: &Pubkey, 
+    accounts: &[AccountInfo], 
+    args: SetActiveInstruction
+) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let owner_account = next_account_info(account_info_iter)?;
@@ -24,9 +28,7 @@ pub fn set_active(_program_id: &Pubkey, accounts: &[AccountInfo], args: SetActiv
     if owner_account.key != &ramp_state.owner {
         return Err(RampError::Unauthorized.into());
     }
-
     let (owner, signer) = (owner_account.key == &ramp_state.owner, owner_account.is_signer);
-
     match (owner, signer) {
         (true, true) => {
             ramp_state.set_active(args.is_active);

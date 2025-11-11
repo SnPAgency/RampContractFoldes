@@ -10,6 +10,7 @@ pub mod off_ramp_deposit_native;
 pub mod set_native_fee_percentage;
 pub mod set_asset_fee;
 pub mod off_ramp_deposit_token22;
+pub mod add_asset_2022;
 
 pub use add_assets::*;
 pub use remove_assets::*;
@@ -23,4 +24,5 @@ pub use off_ramp_deposit_native::*;
 pub use set_native_fee_percentage::*;
 pub use set_asset_fee::*;
 pub use off_ramp_deposit_token22::*;
+pub use add_asset_2022::*;
 

@@ -1170,7 +1170,7 @@ mod test {
         accounts.insert(ramp_token_account.0, ramp_token_account.1);
 
         //metadata account
-        accounts.insert(metadata_account.0, metadata_account.1);
+        //accounts.insert(metadata_account.0, metadata_account.1);
 
         let initialize_instruction = InitializeProgramInstruction {
             bump: ramp_pda.1,
@@ -1250,7 +1250,6 @@ mod test {
                 AccountMeta::new(payer.0, true),
                 AccountMeta::new(mint_vault.0, false),
                 AccountMeta::new(ramp_token_account.0, false),
-                AccountMeta::new(metadata_account.0, false),
                 AccountMeta::new_readonly(token::ID, false),
 
             ],

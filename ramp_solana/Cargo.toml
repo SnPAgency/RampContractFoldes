@@ -83,3 +83,7 @@ path = "examples/onramp_native.rs"
 [[example]]
 name = "off_ramp_native"
 path = "examples/off_ramp_native.rs"
+
+[[example]]
+name = "off_ramp"
+path = "examples/off_ramp.rs"

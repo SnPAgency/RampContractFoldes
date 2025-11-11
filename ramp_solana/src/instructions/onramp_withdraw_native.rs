@@ -30,12 +30,21 @@ pub fn onramp_withdraw_native(
     if !ramp_state.is_active {
         return Err(RampError::ProgramNotActive.into());
     }
-    if owner_account.key != &ramp_state.owner && !owner_account.is_signer {
-        return Err(RampError::Unauthorized.into());
+
+    let (owner, signer) = (owner_account.key != &ramp_state.owner, owner_account.is_signer);
+
+    match (owner, signer) {
+        (true, true) => {
+            **ramp_account.try_borrow_mut_lamports()? -= args.amount;
+            **recipient_account.try_borrow_mut_lamports()? += args.amount;
+            
+            Ok(())
+        },
+        (false, true) => {
+            return Err(RampError::InvalidSigner.into());
+        },
+        _ => return Err(RampError::Unauthorized.into()),
     }
     
-    **ramp_account.try_borrow_mut_lamports()? -= args.amount;
-    **recipient_account.try_borrow_mut_lamports()? += args.amount;
-    
-    Ok(())
+
 }

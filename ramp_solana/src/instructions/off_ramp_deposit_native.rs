@@ -25,21 +25,17 @@ pub fn off_ramp_deposit_native(
     accounts: &[AccountInfo],
     args: OffRampDepositNativeInstruction
 ) -> ProgramResult {
-
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
     let depositor_account = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         RampState::try_from_slice(&ramp_data)?
     };
-
     if !ramp_state.is_active {
         return Err(RampError::ProgramNotActive.into());
     }
-
     invoke(
         &transfer(
             depositor_account.key,
@@ -52,7 +48,6 @@ pub fn off_ramp_deposit_native(
             system_program.clone(),
         ],
     )?;
-
     let fee = ramp_state.native_fee_percentage * (args.amount / 100) as u128;
     ramp_state.update_native_revenue(fee);
     let mut ramp_data = ramp_account.try_borrow_mut_data()?;
@@ -73,6 +68,5 @@ pub fn off_ramp_deposit_native(
             data: args.data,
         }).unwrap()
     ));
-    
     Ok(())
 }

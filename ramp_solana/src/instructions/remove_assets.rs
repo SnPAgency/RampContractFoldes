@@ -8,7 +8,7 @@ use solana_program::{
     program_pack::Pack,
     program::invoke,
 };
-
+use spl_token::state::Account;
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct RemoveAssetsInstruction {
     //pub asset: Pubkey,
@@ -21,69 +21,64 @@ pub fn remove_assets(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let ramp_account = next_account_info(account_info_iter)?;
-
     let ramp_associated_token_account = next_account_info(account_info_iter)?;
-
     let asset_mint_account = next_account_info(account_info_iter)?;
-
     let owner_account = next_account_info(account_info_iter)?;
-
     let owner_token_account = next_account_info(account_info_iter)?;
-
     let token_program = next_account_info(account_info_iter)?;
 
     // Check ramp account is signer (needed for token transfer)
-    if !ramp_account.is_signer {
-        return Err(RampError::InvalidSigner.into());
-    }
     let mut ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
-    // Check owner authorization
-    if owner_account.key != &ramp_state.owner {
-        return Err(RampError::Unauthorized.into());
-    }
-    let ramp_associated_token_account_data = spl_token::state::Account::unpack(&ramp_associated_token_account.try_borrow_data()?)?;
 
-    if ramp_associated_token_account_data.amount > 0 {
-        let transfer_instructions = spl_token::instruction::transfer(
-            token_program.key,
-            ramp_associated_token_account.key,
-            owner_token_account.key,
-            ramp_account.key, // Ramp account is the authority
-            &[ramp_account.key],
-            ramp_associated_token_account_data.amount,
-        )?;
-        
-        invoke(
-            &transfer_instructions,
-            &[
-                ramp_associated_token_account.clone(),
-                owner_token_account.clone(),
-                ramp_account.clone(),
-                token_program.clone(),
-            ]
-        )?;
-    }
-    // Remove the specified assets
-    match ramp_state.remove_asset(asset_mint_account.key) {
-        Ok(()) => {
-            let mut ramp_data = ramp_account.try_borrow_mut_data()?;
-            // Clear the account data first
-            ramp_data.fill(0);
-            // Serialize the updated state back to the account data
-            let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
-            if serialized_data.len() > ramp_data.len() {
-                return Err(RampError::InvalidAccountState.into());
+    let (owner, signer) = (owner_account.key == &ramp_state.owner, owner_account.is_signer);
+
+    match (owner, signer) {
+        (true, true) => {
+            let ramp_associated_token_account_data = Account::unpack(&ramp_associated_token_account.try_borrow_data()?)?;
+            if ramp_associated_token_account_data.amount > 0 {
+                let transfer_instructions = spl_token::instruction::transfer(
+                    token_program.key,
+                    ramp_associated_token_account.key,
+                    owner_token_account.key,
+                    ramp_account.key,
+                    &[ramp_account.key],
+                    ramp_associated_token_account_data.amount,
+                )?;
+                invoke(
+                    &transfer_instructions,
+                    &[
+                        ramp_associated_token_account.clone(),
+                        owner_token_account.clone(),
+                        ramp_account.clone(),
+                        token_program.clone(),
+                    ]
+                )?;
             }
-            ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
-            msg!("Assets removed successfully {}", asset_mint_account.key);
+            match ramp_state.remove_asset(asset_mint_account.key) {
+                Ok(()) => {
+                    let mut ramp_data = ramp_account.try_borrow_mut_data()?;
+                    ramp_data.fill(0);
+                    let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
+                    if serialized_data.len() > ramp_data.len() {
+                        return Err(RampError::InvalidAccountState.into());
+                    }
+                    ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
+                    msg!("Assets removed successfully {}", asset_mint_account.key);
+                },
+                Err(_) => {
+                    return Err(RampError::AssetNotFound.into());
+                }
+            }
+            Ok(())
         },
-        Err(_) => {
-            return Err(RampError::AssetNotFound.into());
+        (true, false) => {
+            return Err(RampError::InvalidSigner.into());
+        },
+        _ => {
+            return Err(RampError::Unauthorized.into());
         }
     }
-
-    Ok(())
 }

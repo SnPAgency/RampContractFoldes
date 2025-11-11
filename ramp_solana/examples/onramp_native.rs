@@ -38,7 +38,6 @@ async fn main() {
     let client = get_client("local");
     let signer_keypair = Keypair::read_from_file("keys/dev-keypair.json").unwrap();
     let ramp_program_id = Keypair::read_from_file("target/deploy/ramp_solana-keypair.json").unwrap().pubkey();
-    let receiver = Keypair::new();
 
     let ramp_account = Pubkey::find_program_address(&[
         b"ramp",signer_keypair.pubkey().as_ref()],
@@ -46,12 +45,12 @@ async fn main() {
     );
 
     let on_ramp_native = ramp_solana::instructions::OnRampWithdrawNativeInstruction     {
-        amount: 100000,
+        amount: 100,
     };
     let accounts = vec![
         AccountMeta::new(ramp_account.0, false),
         AccountMeta::new(signer_keypair.pubkey(), true),
-        AccountMeta::new(receiver.pubkey(), false),
+        AccountMeta::new(signer_keypair.pubkey(), false),
     ];
     let on_ramp_native_instruction = Instruction::new_with_borsh(
         ramp_program_id,

@@ -28,7 +28,6 @@ pub fn onramp_withdraw(
     let asset_receiver_token_account = next_account_info(account_info_iter)?;
     let ramp_token_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
-
     let ramp_state: RampState = {
         let ramp_data = ramp_account.try_borrow_data()?;
         RampState::try_from_slice(&ramp_data)?
@@ -38,7 +37,6 @@ pub fn onramp_withdraw(
         ramp_owner.is_signer,
         ramp_state.is_active
     );
-
     match (owner, signer, status) {
         (true, true, true) => {
             match ramp_state.get_asset_info_ref(asset_mint_account.key) {
@@ -47,7 +45,6 @@ pub fn onramp_withdraw(
                         ramp_account.key,
                         asset_mint_account.key,
                     );
-                
                     let transfer_instructions = token_instruction::transfer(
                         token_program.key,
                         &ramp_associated_token_account,
@@ -56,7 +53,6 @@ pub fn onramp_withdraw(
                         &[ramp_account.key],
                         args.amount,
                     )?;
-                
                     let transfer_result = invoke(
                         &transfer_instructions,
                         &[
@@ -66,7 +62,6 @@ pub fn onramp_withdraw(
                             token_program.clone(),
                         ],
                     );
-                
                     if transfer_result.is_err() {
                         return Err(RampError::TransferFailed.into());
                     }

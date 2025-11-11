@@ -1,5 +1,4 @@
-use crate::{errors::RampError, state::RampState};
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{errors::RampError, instructions::AddAssetsInstruction, state::RampState};
 use solana_program::{
     account_info::{next_account_info, AccountInfo}, 
     entrypoint::ProgramResult, 
@@ -8,20 +7,15 @@ use solana_program::{
     program::invoke,
 };
 use spl_associated_token_account::instruction::create_associated_token_account;
-use spl_token_interface::instruction::transfer;
+use spl_token_2022_interface::instruction::transfer_checked;
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct AddAssetsInstruction {
-    pub initial_amount: u64,
-    pub fee_percentage: u128,
-}
-
-pub fn add_assets(
+pub fn add_assets_2022(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     args: AddAssetsInstruction
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
+
     //recepient account
     let ramp_account = next_account_info(account_info_iter)?;
     //asset account
@@ -46,6 +40,7 @@ pub fn add_assets(
         let ramp_data = ramp_account.try_borrow_data()?;
         borsh::from_slice(&ramp_data)?
     };
+
     if  !ramp_state.is_active {
         return Err(RampError::UninitializedAccount.into());
     }
@@ -72,13 +67,15 @@ pub fn add_assets(
             ],
         )?;
     }
-    let transfer_instructions = transfer(
+    let transfer_instructions = transfer_checked(
         token_program.key,
         owner_token_account.key,
         ramp_token_account.key,
         owner_account.key,
+        &owner_account.key,
         &[owner_account.key],
         args.initial_amount,
+        9,
     )?;
     let transfer_result = invoke(
         &transfer_instructions,
@@ -97,11 +94,9 @@ pub fn add_assets(
             let mut ramp_data = ramp_account.try_borrow_mut_data()?;
             ramp_data.fill(0);
             let serialized_data = borsh::to_vec(&ramp_state).expect("Failed to serialize ramp state");
-
             if serialized_data.len() > ramp_data.len() {
                 return Err(RampError::InvalidAccountState.into());
             }
-
             ramp_data[..serialized_data.len()].copy_from_slice(&serialized_data);    
             msg!("Assets added successfully");
         },
