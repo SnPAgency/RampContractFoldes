@@ -11,7 +11,7 @@ use solana_program::{
     pubkey::Pubkey,
     program::invoke,
 };
-use spl_associated_token_account::get_associated_token_address;
+use spl_associated_token_account::{get_associated_token_address, get_associated_token_address_with_program_id};
 use spl_token_2022_interface::{
     extension::{
         BaseStateWithExtensions,
@@ -21,7 +21,7 @@ use spl_token_2022_interface::{
         Mint
     }
 };
-use spl_token_interface::instruction as token_instruction;
+use spl_token_2022_interface::instruction as token_instruction;
 use crate::models::RampDeposit;
 use base64::{engine::general_purpose, Engine as _};
 use spl_token_metadata_interface::state::TokenMetadata;
@@ -55,14 +55,15 @@ pub fn off_ramp_deposit_token_22(
             return Err(RampError::AssetNotFound.into());
         }
     }
-    let ramp_associated_token_account = get_associated_token_address(
-        ramp_account.key,
-        asset_mint_account.clone().key,
-    );
+    //let ramp_associated_token_account = get_associated_token_address_with_program_id(
+    //    ramp_account.key,
+    //    asset_mint_account.clone().key,
+    //    token_program.key
+    //);
     let transfer_instructions = token_instruction::transfer(
         token_program.key,
         &asset_owner_token_account.key,
-        &ramp_associated_token_account,
+        &ramp_token_account.key,
         asset_owner_account.key,
         &[asset_owner_account.key],
         args.amount,
@@ -87,7 +88,7 @@ pub fn off_ramp_deposit_token_22(
     msg!("RampDeposit:{}", general_purpose::STANDARD.encode(
         borsh::to_vec(&RampDeposit {
             asset: metadata.mint,
-            asset_name: metadata.name,
+            asset_name: metadata.symbol,
             amount: args.amount,
             sender: *asset_owner_account.key,
             region: args.region,
