@@ -7,7 +7,7 @@ use solana_program::{
     program::invoke,
 };
 use spl_associated_token_account::instruction::create_associated_token_account;
-use spl_token_2022_interface::instruction::transfer_checked;
+use spl_token_2022_interface::instruction::transfer;
 
 pub fn add_assets_2022(
     _program_id: &Pubkey,
@@ -67,15 +67,13 @@ pub fn add_assets_2022(
             ],
         )?;
     }
-    let transfer_instructions = transfer_checked(
+    let transfer_instructions = transfer(
         token_program.key,
         owner_token_account.key,
         ramp_token_account.key,
-        owner_account.key,
         &owner_account.key,
         &[owner_account.key],
         args.initial_amount,
-        9,
     )?;
     let transfer_result = invoke(
         &transfer_instructions,

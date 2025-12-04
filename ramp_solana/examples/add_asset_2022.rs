@@ -9,7 +9,7 @@ use solana_sdk::{
     }, pubkey::Pubkey, signer::EncodableKey, transaction::Transaction
 };
 use solana_sdk::signature::{Keypair, Signer};
-use spl_token_interface::id as token_program;
+use spl_token_2022_interface::id as token_program;
 use spl_associated_token_account_interface::program::id as associated_token_program;
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use spl_token_2022_interface::ID as TOKEN_PROGRAM_ID;
@@ -65,11 +65,6 @@ async fn main() {
         &asset_mint_account.pubkey(),
         &TOKEN_PROGRAM_ID,
     );
-    //let ramp_token_account = get_associated_token_address_with_program_id(
-    //    &ramp_program_id,
-    //    &asset_mint_account.pubkey(),
-    //    &TOKEN_PROGRAM_ID,
-    //);
 
     let accounts = vec![
         AccountMeta::new(ramp_account.0, false),

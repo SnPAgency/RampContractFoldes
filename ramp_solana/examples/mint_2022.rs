@@ -60,7 +60,9 @@ async fn main() {
         &[&signer_keypair],
         client.get_latest_blockhash().await.unwrap(),
     );
-    let create_owner_associated_token_account_result = client.send_and_confirm_transaction(&create_owner_associated_token_account_transaction).await;
+    let create_owner_associated_token_account_result = client.send_and_confirm_transaction(
+        &create_owner_associated_token_account_transaction
+    ).await;
     assert!(create_owner_associated_token_account_result.is_ok(), "{:?}", create_owner_associated_token_account_result.err().unwrap());
     let ramp_account = Pubkey::find_program_address(&[
         b"ramp",signer_keypair.pubkey().as_ref()],
@@ -78,7 +80,9 @@ async fn main() {
         &[&signer_keypair],
         client.get_latest_blockhash().await.unwrap(),
     );
-    let create_ramp_associated_token_account_result = client.send_and_confirm_transaction(&create_ramp_associated_token_account_transaction).await;
+    let create_ramp_associated_token_account_result = client.send_and_confirm_transaction(
+        &create_ramp_associated_token_account_transaction
+    ).await;
     assert!(create_ramp_associated_token_account_result.is_ok(), "{:?}", create_ramp_associated_token_account_result.err().unwrap());
     // Mint tokens to the payer's token account
     let mint_instructions = mint_to(
